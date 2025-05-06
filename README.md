@@ -4,7 +4,7 @@ This README aims to welcome users and developers, explain the project, detail th
 
 # Rideshares.org (NOSTR)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!-- Optional: Add a license badge -->
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Flutter/NOSTR based ridesharing proof-of-concept and protocol proposal.
 
@@ -36,7 +36,7 @@ We believe decentralized protocols like NOSTR are well-suited for connecting peo
 
 ## Getting Started (Users)
 
-1.  **Web App:** Access the deployed web app at [https://rideshares.org](https://rideshares.org) (Domain pending connection - Use Firebase URL for now: `[YOUR_FIREBASE_PROJECT_ID].web.app`)
+1.  **Web App:** Access the deployed web app at [https://rideshares.org](https://rideshares.org)
 2.  **Browse:** View rides immediately. Use the "Nearby", "Global", and Search options.
 3.  **Post/Manage:** To post or manage your rides, you'll need a NOSTR identity.
     *   **Generate:** The app can generate a new key pair for you. **IMPORTANT: Backup the private key (nsec) shown securely offline! It cannot be recovered.**
@@ -55,7 +55,7 @@ We believe decentralized protocols like NOSTR are well-suited for connecting peo
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/your-github-username/rideshares-nostr.git # Replace with your repo URL
+    git clone https://github.com/kenflannerye/rideshares-nostr.git # Replace with your repo URL
     cd rideshares-nostr
     ```
 2.  **Get Dependencies:**
@@ -153,20 +153,16 @@ Contributing
 
 Contributions are welcome! Please feel free to submit Pull Requests or open Issues for bugs, feature requests, or protocol suggestions.
 
-(Optional: Add details on code style, branching strategy if desired)
-
 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 Contact
 
-Developer: [Your Name/Alias]
+Developer: Kenny Flannery
 
 Nostr: npub192mfhkcm2jnunx80mdje36chk4k3hfe3jy4k4nwgmh3rhmr7y2asn5g2ff
 
 Twitter: @HoboLifestyle
 
 Project Website: rideshares.org (when live)
-
-Copy this content into a README.md file in the root of your project directory. Replace placeholders like [YOUR_FIREBASE_PROJECT_ID].web.app and the GitHub URL once you have them. This provides a great starting point for your open-source repository!
