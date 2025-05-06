@@ -24,7 +24,7 @@ class NostrService with ChangeNotifier {
     {'url': 'wss://relay.damus.io', 'priority': 1, 'active': true},
     {'url': 'wss://nos.lol', 'priority': 2, 'active': true},
     {'url': 'wss://relay.primal.net', 'priority': 3, 'active': true},
-    {'url': 'wss://nostr-pub.wellorder.net', 'priority': 4, 'active': true},
+    {'url': 'wss://relay.trustroots.org', 'priority': 4, 'active': true},
     {'url': 'wss://relay.nostr.band', 'priority': 5, 'active': true},
   ];
 
