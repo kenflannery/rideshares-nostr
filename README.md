@@ -53,7 +53,7 @@ We believe decentralized protocols like NOSTR are well-suited for connecting peo
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/kenflannery/rideshares-nostr.git # Replace with your repo URL
+    git clone https://github.com/kenflannery/rideshares-nostr.git
     cd rideshares-nostr
     ```
 2.  **Get Dependencies:**
