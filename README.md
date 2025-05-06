@@ -146,16 +146,18 @@ This app uses **Kind 30402** (NIP-99 Classifieds) to represent ride offers and r
   "id": "...", // ID of this specific event
   "sig": "..."
 }
+```
 
-Contributing
+
+## Contributing
 
 Contributions are welcome! Please feel free to submit Pull Requests or open Issues for bugs, feature requests, or protocol suggestions.
 
-License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-Contact
+## Contact
 
 Developer: Kenny Flannery
 
