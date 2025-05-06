@@ -1,5 +1,3 @@
-Okay, that InfoScreen provides excellent content to pull from! Let's translate that into a comprehensive README.md for your GitHub repository.
-
 This README aims to welcome users and developers, explain the project, detail the NOSTR protocol being used, and make it easy for others to run or contribute.
 
 # Rideshares.org (NOSTR)
