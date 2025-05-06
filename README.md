@@ -163,8 +163,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Developer: Kenny Flannery
 
-Nostr: npub192mfhkcm2jnunx80mdje36chk4k3hfe3jy4k4nwgmh3rhmr7y2asn5g2ff
+Nostr: [npub192mfhkcm2jnunx80mdje36chk4k3hfe3jy4k4nwgmh3rhmr7y2asn5g2ff](https://njump.me/npub192mfhkcm2jnunx80mdje36chk4k3hfe3jy4k4nwgmh3rhmr7y2asn5g2ff)
 
-Twitter: @HoboLifestyle
+Twitter: [@HoboLifestyle](https://xcancel.com/HoboLifestyle)
 
 Project Website: https://rideshares.org/
