@@ -167,6 +167,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                         Text('Description', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text(widget.ride.description, style: Theme.of(context).textTheme.bodyMedium),
+                        _buildMessageButton(widget.ride.pubkey),
                       ],
                     ],
                   ),
@@ -214,6 +215,28 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMessageButton(String pubkey) {
+
+    if (pubkey.isEmpty) {
+      return const SizedBox.shrink(); // Return an empty widget if pubkey is empty
+    }
+    String npub = Nostr.instance.services.bech32.encodePublicKeyToNpub(pubkey);
+    String url = 'https://www.nostrchat.io/dm/$npub';
+    if (url.isEmpty) {
+      return const SizedBox.shrink(); // Return an empty widget if URL is empty
+  }
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.message),
+        label: const Text('Message'),
+        onPressed: () {
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        },
+    ),
     );
   }
 
