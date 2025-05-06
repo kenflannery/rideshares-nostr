@@ -25,11 +25,32 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   bool _isMapView = false;
   final TextEditingController _searchController = TextEditingController();
+  final MapController _mapController = MapController();
 
   @override
   void dispose() {
     _searchController.dispose();
+    _mapController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant FeedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isMapView) {
+      _updateMapCenter();
+    }
+  }
+
+  void _updateMapCenter() {
+    final provider = context.read<FeedProvider>();
+    LatLng newCenter = const LatLng(51.5074, -0.1278); // Default center (London)
+    if (provider.currentMode == FeedMode.search && provider.searchLocation != null) {
+      newCenter = LatLng(provider.searchLocation!.latitude, provider.searchLocation!.longitude);
+    } else if (provider.currentDevicePosition != null) {
+      newCenter = LatLng(provider.currentDevicePosition!.latitude, provider.currentDevicePosition!.longitude);
+    }
+    _mapController.move(newCenter, 5);
   }
 
   @override
@@ -86,7 +107,6 @@ class _FeedScreenState extends State<FeedScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    //spacing: 8,
                     children: [
                       IconButton(
                         icon: Icon(_isMapView ? Icons.list : Icons.map, color: Colors.blueAccent),
@@ -126,7 +146,6 @@ class _FeedScreenState extends State<FeedScreen> {
                     ],
                   ),
                   Row(
-                    spacing: 8,
                     children: [
                       Consumer<FeedProvider>(
                         builder: (context, feedProvider, child) {
@@ -213,6 +232,7 @@ class _FeedScreenState extends State<FeedScreen> {
             if (value.trim().isNotEmpty) {
               provider.searchLocationAndFetch(value.trim());
               Navigator.of(dialogContext).pop();
+              if (_isMapView) _updateMapCenter();
             }
           },
         ),
@@ -224,6 +244,7 @@ class _FeedScreenState extends State<FeedScreen> {
               if (query.isNotEmpty) {
                 provider.searchLocationAndFetch(query);
                 Navigator.of(dialogContext).pop();
+                if (_isMapView) _updateMapCenter();
               }
             },
             child: const Text('Search'),
@@ -511,9 +532,15 @@ class _FeedScreenState extends State<FeedScreen> {
         }).toList();
 
         LatLng initialCenter = const LatLng(51.5074, -0.1278);
-        if (feedProvider.currentDevicePosition != null) {
+        if (feedProvider.currentMode == FeedMode.search && feedProvider.searchLocation != null) {
+          initialCenter = LatLng(feedProvider.searchLocation!.latitude, feedProvider.searchLocation!.longitude);
+        } else if (feedProvider.currentDevicePosition != null) {
           initialCenter = LatLng(feedProvider.currentDevicePosition!.latitude, feedProvider.currentDevicePosition!.longitude);
         }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _mapController.move(initialCenter, 5);
+        });
 
         return Card(
           elevation: 4,
@@ -524,6 +551,7 @@ class _FeedScreenState extends State<FeedScreen> {
             child: Stack(
               children: [
                 FlutterMap(
+                  mapController: _mapController,
                   options: MapOptions(
                     initialCenter: initialCenter,
                     initialZoom: 10.0,
