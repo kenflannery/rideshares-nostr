@@ -62,6 +62,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -73,6 +74,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/icon/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -104,3 +108,35 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  # === Required ===
+  # Path to your master high-resolution icon
+  image_path: "assets/icon/app_icon.png"
+
+  # === Platform Generation Flags ===
+  android: true # Generate Android icons
+  ios: true     # Generate iOS icons
+  web:
+    generate: true # Generate icons for web (manifest.json, icons folder)
+    image_path: "assets/icon/app_icon.png" # Optional: Use same or different icon for web PWA
+    background_color: "#C7B2F8" # Optional: Background for PWA splash/tile
+    theme_color: "#C7B2F8" # Optional: Theme color for PWA
+  windows:
+    generate: false # Set to true if you target Windows
+    # image_path: ...
+    # icon_size: 48 # Optional
+  macos:
+    generate: false # Set to true if you target macOS
+    # image_path: ...
+
+  # === Android Specifics (Recommended) ===
+  # For modern Android adaptive icons (required for Android 8.0+)
+  adaptive_icon_background: "#FFFFFF" # Color for the background layer (e.g., white) OR path to an asset: "assets/icon/adaptive_bg.png"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png" # Path to asset for foreground layer (usually your logo with transparency)
+  # If you DON'T provide adaptive_icon_foreground, it will use image_path and try to center it.
+  # If you DON'T provide adaptive_icon_background, it might default or use a color - explicit is better.
+
+  # === iOS Specifics (Optional) ===
+  remove_alpha_ios: true # iOS icons generally shouldn't have transparency
+
