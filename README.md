@@ -2,6 +2,8 @@ This README aims to welcome users and developers, explain the project, detail th
 
 # Rideshares.org (NOSTR)
 
+https://rideshares.org/
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Flutter/NOSTR based ridesharing proof-of-concept and protocol proposal.
@@ -34,7 +36,7 @@ We believe decentralized protocols like NOSTR are well-suited for connecting peo
 
 ## Getting Started (Users)
 
-1.  **Web App:** Access the deployed web app at [https://rideshares.org](https://rideshares.org)
+1.  **Web App:** Access the deployed web app at [rideshares.org](https://rideshares.org/)
 2.  **Browse:** View rides immediately. Use the "Nearby", "Global", and Search options.
 3.  **Post/Manage:** To post or manage your rides, you'll need a NOSTR identity.
     *   **Generate:** The app can generate a new key pair for you. **IMPORTANT: Backup the private key (nsec) shown securely offline! It cannot be recovered.**
@@ -165,4 +167,4 @@ Nostr: npub192mfhkcm2jnunx80mdje36chk4k3hfe3jy4k4nwgmh3rhmr7y2asn5g2ff
 
 Twitter: @HoboLifestyle
 
-Project Website: rideshares.org (when live)
+Project Website: https://rideshares.org/
