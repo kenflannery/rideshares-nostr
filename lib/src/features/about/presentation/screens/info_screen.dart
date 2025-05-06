@@ -412,7 +412,7 @@ class InfoScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 10),
-                      const Text('GitHub: [Link to repo once created]', style: TextStyle(decoration: TextDecoration.underline)),
+                      const Text('https://github.com/kenflannery/rideshares-nostr', style: TextStyle(decoration: TextDecoration.underline)),
                       const SizedBox(height: 5),
                       const Text('Tech Stack: Flutter, NOSTR, dart_nostr'),
                     ],
