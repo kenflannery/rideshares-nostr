@@ -2,57 +2,124 @@ import 'dart:async';
 import 'package:dart_nostr/nostr/model/ease.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dart_nostr/dart_nostr.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ride_item_model.dart';
 import '../utils/nostr_pow_helper.dart';
 import 'dart:math';
 
 enum NostrConnectionState { disconnected, connecting, connected, reconnecting }
 
-/// Service responsible for managing NOSTR relay connections, subscriptions,
-/// and event fetching/publishing for the Rideshares app.
 class NostrService with ChangeNotifier {
-  // Current connection state
   NostrConnectionState _connectionState = NostrConnectionState.disconnected;
   NostrConnectionState get connectionState => _connectionState;
 
-  // Track whether initialization is in progress
   bool _isInitializing = false;
   bool get isInitializing => _isInitializing;
 
-  // List of relays with priority and status
-  final List<Map<String, dynamic>> _relays = [
-    {'url': 'wss://relay.damus.io', 'priority': 1, 'active': true},
-    {'url': 'wss://nos.lol', 'priority': 2, 'active': true},
-    {'url': 'wss://relay.primal.net', 'priority': 3, 'active': true},
-    {'url': 'wss://relay.trustroots.org', 'priority': 4, 'active': true},
-    {'url': 'wss://relay.nostr.band', 'priority': 5, 'active': true},
-  ];
+  List<Map<String, Object>> _relays = [];
+  List<Map<String, Object>> get relays => _relays;
 
-  // Default PoW difficulty
   final int _defaultPowDifficulty = 28;
 
-  // Nostr service instance
   final _nostrRelaysService = Nostr.instance.services.relays;
 
-  // Stream controllers
   final _feedRideEventController = StreamController<RideItemModel>.broadcast();
   Stream<RideItemModel> get feedRideEventsStream => _feedRideEventController.stream;
 
-  // Subscription tracking
   final Map<String, String> _activeSubscriptions = {};
   final Map<String, NostrEventsStream> _activeStreams = {};
 
-  // Connected relays
   Set<String> _connectedRelayUrls = {};
+  Set<String> get connectedRelayUrls => _connectedRelayUrls;
   int get connectedRelayCount => _connectedRelayUrls.length;
-  int get totalRelayCount => _relays.where((r) => r['active']).length;
+  int get totalRelayCount => _relays.where((r) => r['active'] as bool).length;
 
-  // Reconnection parameters
   static const _maxReconnectAttempts = 3;
   int _reconnectAttempts = 0;
   Timer? _reconnectTimer;
 
-  /// Initializes connections to relays with retry and fallback logic.
+  NostrService() {
+    _loadRelays();
+  }
+
+  Future<void> _loadRelays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedRelays = prefs.getStringList('nostr_relays');
+    if (savedRelays != null && savedRelays.isNotEmpty) {
+      _relays = savedRelays.map((relayStr) {
+        final parts = relayStr.split('|');
+        return {
+          'url': parts[0] as Object,
+          'priority': int.parse(parts[1]) as Object,
+          'active': (parts[2] == 'true') as Object,
+        };
+      }).toList();
+    } else {
+      _relays = [
+        {'url': 'wss://relay.damus.io' as Object, 'priority': 1 as Object, 'active': true as Object},
+        {'url': 'wss://nos.lol' as Object, 'priority': 2 as Object, 'active': true as Object},
+        {'url': 'wss://relay.primal.net' as Object, 'priority': 3 as Object, 'active': true as Object},
+        {'url': 'wss://relay.trustroots.org' as Object, 'priority': 4 as Object, 'active': true as Object},
+        {'url': 'wss://relay.nostr.band' as Object, 'priority': 5 as Object, 'active': true as Object},
+      ];
+      await _saveRelays();
+    }
+    notifyListeners();
+    await init();
+  }
+
+  Future<void> _saveRelays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final relayStrings = _relays.map((relay) => '${relay['url']}|${relay['priority']}|${relay['active']}').toList();
+    await prefs.setStringList('nostr_relays', relayStrings);
+  }
+
+  Future<bool> addRelay(String url) async {
+    if (!url.startsWith('wss://')) {
+      debugPrint("NostrService: Invalid relay URL, must start with wss://: $url");
+      return false;
+    }
+    if (_relays.any((r) => r['url'] == url)) {
+      debugPrint("NostrService: Relay already exists: $url");
+      return false;
+    }
+    _relays.add({
+      'url': url as Object,
+      'priority': _relays.length + 1 as Object,
+      'active': true as Object,
+    });
+    await _saveRelays();
+    notifyListeners();
+    await init();
+    return true;
+  }
+
+  Future<bool> removeRelay(String url) async {
+    final index = _relays.indexWhere((r) => r['url'] == url);
+    if (index == -1) {
+      debugPrint("NostrService: Relay not found: $url");
+      return false;
+    }
+    _relays.removeAt(index);
+    await _saveRelays();
+    notifyListeners();
+    await init();
+    return true;
+  }
+
+  Future<bool> toggleRelayActive(String url) async {
+    final index = _relays.indexWhere((r) => r['url'] == url);
+    if (index == -1) {
+      debugPrint("NostrService: Relay not found: $url");
+      return false;
+    }
+    _relays[index]['active'] = !(_relays[index]['active'] as bool);
+    await _saveRelays();
+    notifyListeners();
+    await init();
+    return true;
+  }
+
   Future<void> init() async {
     if (_isInitializing || _connectionState == NostrConnectionState.connected) {
       debugPrint("NostrService: Skipping init (already initializing or connected).");
@@ -67,9 +134,8 @@ class NostrService with ChangeNotifier {
     debugPrint("NostrService: Initializing relay connections...");
 
     try {
-      // Select active relays, sorted by priority
       final activeRelayUrls = _relays
-          .where((r) => r['active'])
+          .where((r) => r['active'] as bool)
           .toList()
         ..sort((a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
 
@@ -106,7 +172,6 @@ class NostrService with ChangeNotifier {
         ensureToClearRegistriesBeforeStarting: true,
       );
 
-      // Immediately check relay statuses after init
       _updateConnectedRelaysFromRegistry();
       _checkConnectionStatus();
       debugPrint("NostrService: Relay init completed. Connected to: $connectedRelayCount/$totalRelayCount");
@@ -119,7 +184,6 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Updates connected relays based on the WebSocket registry.
   void _updateConnectedRelaysFromRegistry() {
     _connectedRelayUrls.clear();
     final registry = _nostrRelaysService.relaysWebSocketsRegistry;
@@ -134,19 +198,18 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Updates relay status (active/inactive) based on connection success/failure.
   void _updateRelayStatus(String relayUrl, bool isActive) {
-    final relay = _relays.firstWhere((r) => r['url'] == relayUrl, orElse: () => {});
-    if (relay.isNotEmpty) {
-      relay['active'] = isActive;
-      if (!isActive) {
-        // Increase priority of inactive relays to try others later
-        relay['priority'] = (relay['priority'] as int) + 1;
-      }
+    final index = _relays.indexWhere((r) => r['url'] == relayUrl);
+    if (index == -1) {
+      debugPrint("NostrService: Relay not found for status update: $relayUrl");
+      return;
+    }
+    _relays[index]['active'] = isActive as Object;
+    if (!isActive) {
+      _relays[index]['priority'] = (_relays[index]['priority'] as int) + 1 as Object;
     }
   }
 
-  /// Checks overall connection status and triggers reconnection if needed.
   void _checkConnectionStatus() {
     if (_connectedRelayUrls.isNotEmpty) {
       _setConnectionState(NostrConnectionState.connected);
@@ -159,7 +222,6 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Schedules a reconnection attempt with exponential backoff.
   void _scheduleReconnect() {
     if (_reconnectAttempts >= _maxReconnectAttempts || _connectionState == NostrConnectionState.reconnecting) {
       debugPrint("NostrService: Max reconnect attempts reached or already reconnecting.");
@@ -178,7 +240,6 @@ class NostrService with ChangeNotifier {
     });
   }
 
-  /// Subscribes to ride events with geohash filtering.
   NostrEventsStream subscribeToRides({List<String>? originGeohashPrefixes, Function(String, NostrRequestEoseCommand)? onEose}) {
     const subKey = "feed_rides";
     if (_connectionState != NostrConnectionState.connected) {
@@ -205,7 +266,7 @@ class NostrService with ChangeNotifier {
     try {
       final streamResult = _nostrRelaysService.startEventsSubscription(
         request: request,
-        onEose: onEose, // Pass the onEose callback
+        onEose: onEose,
       );
       _activeSubscriptions[subKey] = streamResult.subscriptionId;
       _activeStreams[subKey] = streamResult;
@@ -234,11 +295,10 @@ class NostrService with ChangeNotifier {
     } catch (e) {
       debugPrint("NostrService: Error starting subscription ($subKey): $e");
       _handleSubscriptionError(subKey);
-      throw e; // Re-throw to allow caller to handle
+      throw e;
     }
   }
 
-  /// Subscribes to user-specific rides.
   NostrEventsStream? subscribeToUserRides(String userPubkeyHex) {
     const subKey = "my_rides";
     if (_connectionState != NostrConnectionState.connected) {
@@ -271,7 +331,6 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Unsubscribes from a specific subscription.
   void _unsubscribe(String subscriptionKey) {
     final subId = _activeSubscriptions.remove(subscriptionKey);
     final stream = _activeStreams.remove(subscriptionKey);
@@ -286,7 +345,6 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Handles subscription errors.
   void _handleSubscriptionError(String subKey) {
     _unsubscribe(subKey);
     if (_connectionState == NostrConnectionState.connected) {
@@ -300,12 +358,10 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Handles subscription completion.
   void _handleSubscriptionDone(String subKey) {
     _unsubscribe(subKey);
   }
 
-  /// Publishes a signed event with retry logic.
   Future<bool> publishEvent(NostrEvent event) async {
     if (_connectionState != NostrConnectionState.connected) {
       debugPrint("NostrService: Cannot publish event ${event.id} (state: $_connectionState).");
@@ -342,7 +398,6 @@ class NostrService with ChangeNotifier {
     return false;
   }
 
-  /// Publishes a deletion event.
   Future<bool> publishDeletionEvent({
     required String eventIdToDelete,
     String reason = "",
@@ -371,7 +426,6 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Publishes an event with PoW.
   Future<NostrEvent?> publishEventWithPow({
     required int kind,
     required List<List<String>> tags,
@@ -420,7 +474,6 @@ class NostrService with ChangeNotifier {
     }
   }
 
-  /// Updates connection state and notifies listeners.
   void _setConnectionState(NostrConnectionState state) {
     if (_connectionState != state) {
       debugPrint("NostrService: Connection state changed: $_connectionState -> $state");
@@ -439,7 +492,4 @@ class NostrService with ChangeNotifier {
     _setConnectionState(NostrConnectionState.disconnected);
     super.dispose();
   }
-
-  // Expose relays for external use
-  List<String> get relays => _relays.where((r) => r['active']).map((r) => r['url'] as String).toList();
 }
