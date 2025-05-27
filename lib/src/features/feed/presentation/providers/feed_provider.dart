@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:osm_nominatim/osm_nominatim.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/models/ride_item_model.dart';
 import '../../../../core/services/nostr_service.dart';
@@ -20,7 +21,10 @@ class FeedProvider with ChangeNotifier {
   String? _error;
   bool _initialFetchDone = false;
 
-  FeedMode _currentMode = FeedMode.nearby;
+  // Default mode for new users, easily configurable
+  static const FeedMode _defaultMode = FeedMode.global;
+
+  FeedMode _currentMode = _defaultMode;
   FeedMode get currentMode => _currentMode;
 
   LocationModel? _searchLocation;
@@ -54,7 +58,29 @@ class FeedProvider with ChangeNotifier {
 
   FeedProvider(this._nostrService) {
     _nostrService.addListener(_nostrConnectionListener);
-    _initLocationAndFetch(mode: FeedMode.nearby);
+    _loadSavedModeAndInit();
+  }
+
+  Future<void> _loadSavedModeAndInit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedMode = prefs.getString('feed_mode');
+    FeedMode initialMode = _defaultMode;
+    if (savedMode != null) {
+      try {
+        initialMode = FeedMode.values.firstWhere(
+              (mode) => mode.toString() == savedMode,
+          orElse: () => _defaultMode,
+        );
+      } catch (e) {
+        debugPrint("FeedProvider: Error loading saved mode: $e");
+      }
+    }
+    _initLocationAndFetch(mode: initialMode);
+  }
+
+  Future<void> _saveMode(FeedMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('feed_mode', mode.toString());
   }
 
   void _nostrConnectionListener() {
@@ -87,6 +113,7 @@ class FeedProvider with ChangeNotifier {
     }
 
     _currentMode = mode;
+    await _saveMode(mode); // Save the new mode
     setStateLoading(true);
     _locationError = null;
     _searchLocation = null;
@@ -128,6 +155,7 @@ class FeedProvider with ChangeNotifier {
         _currentDevicePosition = positionToUse;
       } else {
         _currentMode = FeedMode.global;
+        await _saveMode(FeedMode.global); // Save fallback mode
         setError("Could not find location: '$searchQuery'.");
         _isLoading = true;
       }
@@ -262,7 +290,7 @@ class FeedProvider with ChangeNotifier {
     }
 
     List<String>? geohashFilter;
-    if (position != null) {
+    if (position != null && _currentMode != FeedMode.global) {
       try {
         final currentGeohash = _geoHasher.encode(position.longitude, position.latitude, precision: 9);
         geohashFilter = NostrEventHelper.generateGeohashTags(currentGeohash, 5, "g")
@@ -274,7 +302,6 @@ class FeedProvider with ChangeNotifier {
     }
 
     try {
-      // Track which relays have sent EOSE
       final relays = _nostrService.relays;
       final totalRelays = relays.length;
       final completedRelays = <String>{};
@@ -293,7 +320,6 @@ class FeedProvider with ChangeNotifier {
             if (completedRelays.length == totalRelays) {
               debugPrint("FeedProvider: All relays sent EOSE");
               allRelaysDone = true;
-              // Delay slightly to ensure any late events are processed
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (_providerMounted && _isLoading) {
                   _rideSubscription?.cancel();
@@ -301,7 +327,6 @@ class FeedProvider with ChangeNotifier {
                   _isLoading = false;
                   _initialFetchDone = true;
                   _error = null;
-                  //_error = _ridesByDTag.isEmpty ? "No rides found nearby." : null;
                   notifyListeners();
                 }
               });
@@ -350,14 +375,13 @@ class FeedProvider with ChangeNotifier {
         },
       );
 
-      // Fallback timeout in case EOSE handling fails
       Future.delayed(const Duration(seconds: 10), () {
         if (_providerMounted && _isLoading) {
           _rideSubscription?.cancel();
           _rideSubscription = null;
           _isLoading = false;
           _initialFetchDone = true;
-          _error = _ridesByDTag.isEmpty ? "No rides found nearby or timed out." : null;
+          _error = _ridesByDTag.isEmpty ? "No rides found." : null;
           debugPrint("FeedProvider: Fallback timeout triggered");
           notifyListeners();
         }
