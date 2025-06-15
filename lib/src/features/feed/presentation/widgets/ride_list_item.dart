@@ -36,6 +36,11 @@ class RideListItem extends StatelessWidget {
       case RideType.request:
         rideTypeText = 'Requesting Ride';
         rideTypeIcon = Icons.hail;
+        rideTypeColor = Colors.orange;
+        break;
+      case RideType.partner:
+        rideTypeText = 'Requesting Partner';
+        rideTypeIcon = Icons.people_alt_outlined;
         rideTypeColor = Colors.blue;
         break;
       default:

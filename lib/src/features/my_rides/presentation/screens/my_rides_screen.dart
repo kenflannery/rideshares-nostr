@@ -494,7 +494,7 @@ class MyRideListItem extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: ride.status == RideStatus.active ? Colors.green : Colors.grey,
           child: Icon(
-            ride.type == RideType.offer ? Icons.drive_eta : Icons.hail,
+            ride.type == RideType.offer ? Icons.drive_eta : ride.type == RideType.partner ? Icons.people_alt_outlined : Icons.hail,
             color: Colors.white,
             size: 20,
           ),

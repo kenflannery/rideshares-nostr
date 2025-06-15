@@ -89,7 +89,11 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                     ),
                   ),
                   title: Text(
-                    widget.ride.type == RideType.offer ? 'Ride Offer' : 'Ride Request',
+                    widget.ride.type == RideType.offer
+                        ? 'Ride Offer'
+                        : widget.ride.type == RideType.partner
+                            ? 'Looking for travel partner'
+                            : 'Ride Request',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(

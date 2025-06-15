@@ -253,7 +253,7 @@ class NostrService with ChangeNotifier {
 
     final filter = NostrFilter(
       kinds: [30402],
-      t: ['rideshare'],
+      t: ['rideshare', 'travel-partner'],
       additionalFilters: originGeohashPrefixes != null && originGeohashPrefixes.isNotEmpty
           ? {'#g': originGeohashPrefixes}
           : null,

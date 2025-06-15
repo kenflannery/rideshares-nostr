@@ -4,7 +4,7 @@ import 'package:dart_nostr/dart_nostr.dart'; // Import NostrEvent
 import 'location_model.dart'; // Import the Location model
 
 // Enum for Ride Type
-enum RideType { offer, request, unknown }
+enum RideType { offer, request, partner, unknown }
 
 // Enum for Ride Status (can align with NIP-99 or be more detailed internally)
 enum RideStatus { active, filled, cancelled, expired, unknown }
@@ -89,6 +89,7 @@ class RideItemModel {
         case 't':
           if (tagValue == 'ride-offer') type = RideType.offer;
           if (tagValue == 'ride-request') type = RideType.request;
+          if (tagValue == 'travel-partner') type = RideType.partner;
           break;
         case 'status':
           if (tagValue == 'active') status = RideStatus.active;

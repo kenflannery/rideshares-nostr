@@ -43,10 +43,23 @@ class NostrEventHelper {
   }) {
     try {
       // --- Prepare Event Data ---
-      final offerOrRequest = rideType == RideType.offer ? 'offer' : 'request';
-      final typeTag = rideType == RideType.offer ? 'ride-offer' : 'ride-request';
+      String offerOrRequest;
+      String typeTag;
+      String title;
+      if (rideType == RideType.offer) {
+        offerOrRequest = 'offer';
+        typeTag = 'ride-offer';
+        title = "Rideshare $offerOrRequest from ${origin.displayName} to ${destination.displayName}";
+      } else if (rideType == RideType.partner) {
+        offerOrRequest = 'travel-partner';
+        typeTag = 'hitchhiking-partner'; // Initial assumption
+        title = "Looking for travel partner from ${origin.displayName} to ${destination.displayName}";
+      } else { // RideType.request
+        offerOrRequest = 'request';
+        typeTag = 'ride-request';
+        title = "Rideshare $offerOrRequest from ${origin.displayName} to ${destination.displayName}";
+      }
 
-      final title = "Rideshare $offerOrRequest from ${origin.displayName} to ${destination.displayName}";
 
       // Format departure time nicely for the content string, including timezone
       // TODO: Use timezone package for more robust formatting later if needed
@@ -60,12 +73,25 @@ class NostrEventHelper {
       }
 
 
-      final fullContent = '$description\n\n'
-          'Type: $offerOrRequest\n'
-          'Departure: $formattedDeparture\n'
-          'Origin: ${origin.displayName}\n'
-          'Destination: ${destination.displayName}\n\n'
-          'NOTE: This ride was posted via Rideshares.org.';
+      String fullContent;
+      if(rideType == RideType.partner) {
+        // For travel partners, we might want a more casual description
+        fullContent = '$description\n\n'
+            'Looking for a travel partner from ${origin.displayName} to ${destination.displayName}.\n'
+            'Departure: $formattedDeparture\n'
+            'Origin: ${origin.displayName}\n'
+            'Destination: ${destination.displayName}\n\n'
+            'NOTE: This request was posted via Rideshares.org.';
+      } else {
+        // For offers and requests, use the standard format
+        fullContent = '$description\n\n'
+            'Type: $offerOrRequest\n'
+            'Departure: $formattedDeparture\n'
+            'Origin: ${origin.displayName}\n'
+            'Destination: ${destination.displayName}\n\n'
+            'NOTE: This ride was posted via Rideshares.org.';
+      }
+
       final summary = description.length > 100 ? '${description.substring(0, 97)}...' : description;
 
 
@@ -97,7 +123,7 @@ class NostrEventHelper {
           ["summary", summary],
           // published_at is handled automatically by fromPartialData if keyPairs provided
           ["t", "Services"], // used in shopstr
-          ["t", "rideshare"],
+          (rideType == RideType.partner) ? ["t", "travel-partner"] : ["t", "rideshare"],
           ["t", "rideshares.org"], // App-specific tag
           ["t", typeTag], // ride-offer or ride-request
           ...originGeohashTags,

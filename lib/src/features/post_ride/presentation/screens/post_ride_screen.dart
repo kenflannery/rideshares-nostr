@@ -213,6 +213,11 @@ class PostRideScreen extends StatelessWidget {
           label: Text('Requesting Ride'),
           icon: Icon(Icons.hail),
         ),
+        ButtonSegment<RideType>(
+          value: RideType.partner,
+          label: Text('Request Partner'),
+          icon: Icon(Icons.people_alt_outlined),
+        ),
       ],
       selected: <RideType>{provider.rideType},
       onSelectionChanged: (Set<RideType> newSelection) {
@@ -221,6 +226,7 @@ class PostRideScreen extends StatelessWidget {
       style: SegmentedButton.styleFrom(visualDensity: VisualDensity.standard),
     );
   }
+
 
   Widget _buildLocationSelector({
     required BuildContext context,
