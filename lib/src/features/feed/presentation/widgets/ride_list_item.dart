@@ -17,6 +17,8 @@ class RideListItem extends StatelessWidget {
         final location = tz.getLocation(ride.originTimezone!);
         final localizedDt = tz.TZDateTime.from(ride.departureTimeUtc, location);
         formattedDepartureTime = '${DateFormat("MMM d y, hh:mm a z").format(localizedDt)} (${ride.originTimezone})';
+      } else {
+        formattedDepartureTime = '${DateFormat("MMM d y, hh:mm a").format(ride.departureTimeUtc)} (UTC)';
       }
     } catch (e) {
       debugPrint("Error formatting time for ride ${ride.id}: $e");
