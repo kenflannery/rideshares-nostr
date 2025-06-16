@@ -65,6 +65,9 @@ class RideListItem extends StatelessWidget {
       formattedPrice = ' - $formattedPrice';
     }
 
+    String formattedGeo = '${ride.origin.displayName} to ${ride.destination.displayName}';
+    String formattedTitle = ride.title;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Card(
@@ -109,7 +112,7 @@ class RideListItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${ride.origin.displayName} to ${ride.destination.displayName}',
+                        formattedTitle,
                         /*style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,

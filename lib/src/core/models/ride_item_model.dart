@@ -17,6 +17,7 @@ class RideItemModel {
   final String pubkey; // Author's public key (hex)
   final DateTime createdAt; // Nostr event timestamp
   final DateTime publishedAt;
+  final String title;
   final RideType type;
   final LocationModel origin;
   final LocationModel destination;
@@ -34,6 +35,7 @@ class RideItemModel {
     required this.pubkey,
     required this.createdAt,
     required this.publishedAt,
+    required this.title,
     required this.type,
     required this.origin,
     required this.destination,
@@ -162,6 +164,7 @@ class RideItemModel {
       pubkey: pubkey ?? 'invalid_pubkey',
       createdAt: createdAt ?? DateTime.now().toUtc(),
       publishedAt: publishedAtTime, // Parsed NIP-99 tag
+      title: title ?? 'No Title',
       type: type,
       origin: origin,
       destination: destination,

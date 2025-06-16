@@ -61,7 +61,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
           ),
         ),
         title: Text(
-          '${widget.ride.origin.displayName} to ${widget.ride.destination.displayName}',
+          '${widget.ride.title}',
           style: const TextStyle(color: Colors.white),
         ),
         leading: IconButton(
