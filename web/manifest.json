@@ -1,11 +1,11 @@
 {
-    "name": "rideshares_app",
-    "short_name": "rideshares_app",
+    "name": "Rideshares.org - Nostr Ridesharing",
+    "short_name": "Rideshares",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#C7B2F8",
-    "theme_color": "#C7B2F8",
-    "description": "A new Flutter project.",
+    "background_color": "#0F172A",
+    "theme_color": "#1976D2",
+    "description": "Free, open, peer-to-peer ridesharing and hitchhiking network built on the Nostr protocol.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
