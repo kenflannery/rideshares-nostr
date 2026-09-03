@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:animate_do/animate_do.dart'; // For fade-in animation
+import 'package:animate_do/animate_do.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/services/update_checker_service.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
@@ -396,9 +399,93 @@ class InfoScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            // Additional Info
+            // Version & App Updates Info
             FadeInUp(
               duration: const Duration(milliseconds: 900),
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Consumer<UpdateCheckerService>(
+                    builder: (context, updateService, _) {
+                      final updateInfo = updateService.updateInfo;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Version & Updates',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          FutureBuilder<String>(
+                            future: UpdateCheckerService.getCurrentVersion(),
+                            builder: (context, snapshot) {
+                              final ver = snapshot.data ?? '1.0.0';
+                              return Text('Installed Version: v$ver', style: const TextStyle(fontSize: 15));
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          if (updateInfo != null && updateInfo.isUpdateAvailable)
+                            Text(
+                              'Latest Release: v${updateInfo.latestVersion} (Update available)',
+                              style: const TextStyle(fontSize: 15, color: Colors.green, fontWeight: FontWeight.bold),
+                            ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1976D2),
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: updateService.isChecking
+                                    ? null
+                                    : () async {
+                                        final res = await updateService.checkForUpdates();
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(res.isUpdateAvailable
+                                                  ? 'New version v${res.latestVersion} available!'
+                                                  : 'You are on the latest version (v${res.currentVersion}).'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                icon: updateService.isChecking
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Icon(Icons.refresh, size: 18),
+                                label: const Text('Check for Updates'),
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  launchUrl(
+                                    Uri.parse(UpdateCheckerService.releasesWebUrl),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
+                                icon: const Icon(Icons.open_in_new, size: 18),
+                                label: const Text('Releases'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Additional Info
+            FadeInUp(
+              duration: const Duration(milliseconds: 950),
               child: Card(
                 elevation: 4,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -412,9 +499,23 @@ class InfoScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 10),
-                      const Text('https://github.com/kenflannery/rideshares-nostr', style: TextStyle(decoration: TextDecoration.underline)),
+                      InkWell(
+                        onTap: () {
+                          launchUrl(
+                            Uri.parse('https://github.com/kenflannery/rideshares-nostr'),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                        child: const Text(
+                          'https://github.com/kenflannery/rideshares-nostr',
+                          style: TextStyle(
+                            decoration: TextDecoration.underline,
+                            color: Color(0xFF1976D2),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 5),
-                      const Text('Tech Stack: Flutter, NOSTR, NDK'),
+                      const Text('Tech Stack: Flutter, NOSTR, NDK, GitHub Pages, GitHub Releases APK'),
                     ],
                   ),
                 ),

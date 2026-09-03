@@ -11,7 +11,8 @@ import '../../../auth/presentation/screens/auth_screen.dart';
 import '../../../ride_detail/presentation/screens/ride_details_screen.dart';
 import '../providers/feed_provider.dart';
 import '../../../post_ride/presentation/screens/post_ride_screen.dart';
-import '../../../my_rides/presentation/screens/my_rides_screen.dart';
+import 'package:rideshares_app/src/features/my_rides/presentation/screens/my_rides_screen.dart';
+import '../../../../core/widgets/update_gate_banner.dart';
 import '../widgets/ride_list_item.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -168,12 +169,19 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ),
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        child: _isMapView ? _buildMapView(context) : _buildListView(context),
+      body: Column(
+        children: [
+          const UpdateGateBanner(),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              child: _isMapView ? _buildMapView(context) : _buildListView(context),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

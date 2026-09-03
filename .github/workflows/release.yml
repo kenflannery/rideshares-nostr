@@ -1,0 +1,103 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'pubspec.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract Version from pubspec.yaml
+        id: extract_version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | head -n 1 | sed 's/version: //; s/+.*//' | tr -d ' "')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION (Tag: v$VERSION)"
+
+      - name: Check if Release Tag Already Exists
+        id: check_tag
+        run: |
+          TAG="${{ steps.extract_version.outputs.TAG_NAME }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "TAG_EXISTS=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG already exists."
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG is new."
+          fi
+
+      - name: Set up Java 17
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        run: flutter pub get
+
+      - name: Analyze Code Quality
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        run: dart analyze
+
+      - name: Run Automated Tests
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        run: flutter test
+
+      - name: Build Release APK
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        run: |
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk rideshares-nostr-v${{ steps.extract_version.outputs.VERSION }}.apk
+          cp build/app/outputs/flutter-apk/app-release.apk rideshares-nostr-latest.apk
+
+      - name: Publish GitHub Release
+        if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.extract_version.outputs.TAG_NAME }}
+          name: Rideshares.org v${{ steps.extract_version.outputs.VERSION }}
+          body: |
+            ### Rideshares.org v${{ steps.extract_version.outputs.VERSION }}
+
+            Decentralized, sovereign peer-to-peer ridesharing on Nostr.
+
+            #### What's New:
+            - Standard NIP-99 Kind 30402 parameterized replaceable events with rideshare hashtags (`rideshare`, `ride-offer`, `ride-request`, `travel-partner`).
+            - Modern multi-signer authentication: Local keys (`nsec`), Amber (NIP-55), Remote Signer (NIP-46), and Web extension (NIP-07).
+            - Location and route filtering with cascading geohash bounds (`g` and `dg`).
+
+            #### Downloads:
+            - **`rideshares-nostr-v${{ steps.extract_version.outputs.VERSION }}.apk`**: Direct standalone Android installer.
+            - **`rideshares-nostr-latest.apk`**: Direct download link for Obtainium and auto-updaters.
+          files: |
+            rideshares-nostr-v${{ steps.extract_version.outputs.VERSION }}.apk
+            rideshares-nostr-latest.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
