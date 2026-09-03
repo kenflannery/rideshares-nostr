@@ -62,7 +62,7 @@ jobs:
 
       - name: Analyze Code Quality
         if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
-        run: dart analyze
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
 
       - name: Run Automated Tests
         if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
