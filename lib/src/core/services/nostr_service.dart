@@ -191,7 +191,7 @@ class NostrService with ChangeNotifier {
 
     final filter = Filter(
       kinds: [30402],
-      tTags: ['rideshare', 'travel-partner'],
+      tTags: ['rideshare', 'travel-partner', 'ride-offer', 'ride-request', 'rideshares.org', 'hitchhiking-partner'],
       since: (DateTime.now().subtract(const Duration(days: 60)).millisecondsSinceEpoch ~/ 1000),
       limit: 100,
     );
@@ -213,8 +213,10 @@ class NostrService with ChangeNotifier {
       response.stream.listen(
         (Nip01Event event) {
           try {
-            final rideItem = RideItemModel.fromNostrEvent(event);
-            _feedRideEventController.add(rideItem);
+            if (RideItemModel.isRideshareEvent(event)) {
+              final rideItem = RideItemModel.fromNostrEvent(event);
+              _feedRideEventController.add(rideItem);
+            }
           } catch (e) {
             debugPrint("NostrService: Error parsing event: $e");
           }
@@ -251,6 +253,7 @@ class NostrService with ChangeNotifier {
     final filter = Filter(
       authors: [userPubkeyHex],
       kinds: [30402],
+      tTags: ['rideshare', 'travel-partner', 'ride-offer', 'ride-request', 'rideshares.org', 'hitchhiking-partner'],
       limit: 200,
     );
 

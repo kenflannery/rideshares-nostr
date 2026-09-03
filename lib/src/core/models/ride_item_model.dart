@@ -48,6 +48,40 @@ class RideItemModel {
     this.priceCurrency,
   });
 
+  /// Checks whether a Nostr event is a valid rideshare listing per our NIP-99 adaptation.
+  static bool isRideshareEvent(Nip01Event event) {
+    if (event.kind != 30402) return false;
+
+    final tags = event.tags ?? [];
+    for (final tag in tags) {
+      if (tag is List && tag.isNotEmpty) {
+        final tagName = tag[0].toString();
+        final tagValue = tag.length > 1 ? tag[1].toString().toLowerCase() : '';
+
+        if (tagName == 't') {
+          if (tagValue == 'rideshare' ||
+              tagValue == 'ridesharing' ||
+              tagValue == 'ride-offer' ||
+              tagValue == 'ride-request' ||
+              tagValue == 'travel-partner' ||
+              tagValue == 'hitchhiking-partner' ||
+              tagValue == 'rideshares.org') {
+            return true;
+          }
+        }
+        if (tagName == 'location_dest' ||
+            tagName == 'departure_utc' ||
+            tagName == 'origin_tz' ||
+            tagName == 'dg' ||
+            tagName == 'origin_lat' ||
+            tagName == 'dest_lat') {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // --- Factory constructor for parsing from a Nip01Event ---
   factory RideItemModel.fromNostrEvent(Nip01Event event) {
     // Basic Info
@@ -63,20 +97,16 @@ class RideItemModel {
     RideStatus status = RideStatus.unknown;
     String? priceAmount; // Store price parts
     String? priceCurrency;
-    // String? priceFrequency;
     String? originDisplayName; // From 'location' tag
     String? originTz;
     String? departureTimestampStr; // From custom tag
     List<String> originGeohashes = [];
     List<String> destGeohashes = [];
-    // --- Add variables for new tags ---
     String? locationDestName;
     String? originLatStr;
     String? originLonStr;
     String? destLatStr;
     String? destLonStr;
-    // --- End new variables ---
-
 
     for (final tag in event.tags ?? []) {
       if (tag is! List<dynamic> || tag.isEmpty) continue;
@@ -85,34 +115,61 @@ class RideItemModel {
       final tagValue = tag.length > 1 ? tag[1].toString() : '';
 
       switch (tagName) {
-        case 'title': title = tagValue; break;
-        case 'published_at': publishedAtStr = tagValue; break;
+        case 'title':
+          title = tagValue;
+          break;
+        case 'published_at':
+          publishedAtStr = tagValue;
+          break;
         case 't':
-          if (tagValue == 'ride-offer') type = RideType.offer;
-          if (tagValue == 'ride-request') type = RideType.request;
-          if (tagValue == 'travel-partner') type = RideType.partner;
+          final lower = tagValue.toLowerCase();
+          if (lower == 'ride-offer' || lower == 'offer') type = RideType.offer;
+          if (lower == 'ride-request' || lower == 'request') type = RideType.request;
+          if (lower == 'travel-partner' || lower == 'hitchhiking-partner' || lower == 'partner') {
+            type = RideType.partner;
+          }
           break;
         case 'status':
-          if (tagValue == 'active') status = RideStatus.active;
-          if (tagValue == 'sold' || tagValue == 'filled') status = RideStatus.filled;
+          final lower = tagValue.toLowerCase();
+          if (lower == 'active') status = RideStatus.active;
+          if (lower == 'sold' || lower == 'filled' || lower == 'completed') status = RideStatus.filled;
+          if (lower == 'cancelled' || lower == 'canceled') status = RideStatus.cancelled;
           break;
         case 'price':
           if (tag.length > 1) priceAmount = tag[1].toString();
           if (tag.length > 2) priceCurrency = tag[2].toString();
-          // if (tag.length > 3) priceFrequency = tag[3].toString();
           break;
-        case 'location': originDisplayName = tagValue; break; // Standard origin name
-        case 'g': originGeohashes.add(tagValue); break;
-        case 'dg': destGeohashes.add(tagValue); break;
-        case 'departure_utc': departureTimestampStr = tagValue; break; // Use custom tag
-        case 'origin_tz': originTz = tagValue; break;
-      // --- Parse NEW tags ---
-        case 'location_dest': locationDestName = tagValue; break;
-        case 'origin_lat': originLatStr = tagValue; break;
-        case 'origin_lon': originLonStr = tagValue; break;
-        case 'dest_lat': destLatStr = tagValue; break;
-        case 'dest_lon': destLonStr = tagValue; break;
-      // --- End parse NEW tags ---
+        case 'location':
+          originDisplayName = tagValue;
+          break;
+        case 'g':
+          originGeohashes.add(tagValue);
+          break;
+        case 'dg':
+          destGeohashes.add(tagValue);
+          break;
+        case 'departure_utc':
+          departureTimestampStr = tagValue;
+          break;
+        case 'origin_tz':
+        case 'timezone':
+          originTz = tagValue;
+          break;
+        case 'location_dest':
+          locationDestName = tagValue;
+          break;
+        case 'origin_lat':
+          originLatStr = tagValue;
+          break;
+        case 'origin_lon':
+          originLonStr = tagValue;
+          break;
+        case 'dest_lat':
+          destLatStr = tagValue;
+          break;
+        case 'dest_lon':
+          destLonStr = tagValue;
+          break;
       }
     }
 

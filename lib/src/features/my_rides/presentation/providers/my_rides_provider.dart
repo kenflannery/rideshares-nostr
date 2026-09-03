@@ -109,14 +109,16 @@ class MyRidesProvider with ChangeNotifier {
           if (!_providerMounted) return;
           bool rideAddedOrUpdated = false;
           try {
-            final ride = RideItemModel.fromNostrEvent(event);
-            final dTag = event.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd');
-            if (dTag != null && dTag.length > 1) {
-              final dValue = dTag[1];
-              final existingRide = _myRidesByDTag[dValue];
-              if (existingRide == null || ride.createdAt.isAfter(existingRide.createdAt)) {
-                _myRidesByDTag[dValue] = ride;
-                rideAddedOrUpdated = true;
+            if (RideItemModel.isRideshareEvent(event)) {
+              final ride = RideItemModel.fromNostrEvent(event);
+              final dTag = event.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd');
+              if (dTag != null && dTag.length > 1) {
+                final dValue = dTag[1];
+                final existingRide = _myRidesByDTag[dValue];
+                if (existingRide == null || ride.createdAt.isAfter(existingRide.createdAt)) {
+                  _myRidesByDTag[dValue] = ride;
+                  rideAddedOrUpdated = true;
+                }
               }
             }
           } catch (e) {
