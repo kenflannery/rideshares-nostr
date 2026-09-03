@@ -205,7 +205,13 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                             padding: const EdgeInsets.all(16.0),
                             child: SelectableText(
                               _formatRawNostrEvent(widget.ride),
-                              style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.black87),
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF81D4FA)
+                                    : Colors.black87,
+                              ),
                             ),
                           ),
                         ],

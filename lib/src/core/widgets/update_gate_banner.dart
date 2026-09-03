@@ -17,6 +17,8 @@ class UpdateGateBanner extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF64B5F6) : theme.colorScheme.primary;
 
     // Major Breaking Upgrade Gate
     if (info.isBreakingMajorUpgrade) {
@@ -25,7 +27,7 @@ class UpdateGateBanner extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer,
+          color: isDark ? const Color(0xFF3B1818) : theme.colorScheme.errorContainer,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: theme.colorScheme.error, width: 1.5),
         ),
@@ -43,7 +45,7 @@ class UpdateGateBanner extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: theme.colorScheme.onErrorContainer,
+                      color: isDark ? Colors.white : theme.colorScheme.onErrorContainer,
                     ),
                   ),
                 ),
@@ -55,7 +57,7 @@ class UpdateGateBanner extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
-                color: theme.colorScheme.onErrorContainer,
+                color: isDark ? const Color(0xFFFFCDD2) : theme.colorScheme.onErrorContainer,
               ),
             ),
             const SizedBox(height: 12),
@@ -78,7 +80,7 @@ class UpdateGateBanner extends StatelessWidget {
                 if (info.releaseUrl != null)
                   TextButton(
                     onPressed: () => launchUrl(Uri.parse(info.releaseUrl!), mode: LaunchMode.externalApplication),
-                    child: const Text('Release Notes'),
+                    child: Text('Release Notes', style: TextStyle(color: primaryColor)),
                   ),
               ],
             ),
@@ -93,13 +95,15 @@ class UpdateGateBanner extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
+        color: isDark ? const Color(0xFF1E293B) : theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : theme.colorScheme.primary.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.system_update_alt_rounded, color: theme.colorScheme.primary, size: 20),
+          Icon(Icons.system_update_alt_rounded, color: primaryColor, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -107,7 +111,7 @@ class UpdateGateBanner extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
+                color: isDark ? Colors.white : theme.colorScheme.onSurface,
               ),
             ),
           ),
@@ -115,6 +119,8 @@ class UpdateGateBanner extends StatelessWidget {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               visualDensity: VisualDensity.compact,
+              backgroundColor: isDark ? const Color(0xFF334155) : null,
+              foregroundColor: isDark ? Colors.white : null,
             ),
             onPressed: () {
               if (info.apkDownloadUrl != null) {

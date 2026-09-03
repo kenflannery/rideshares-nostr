@@ -12,8 +12,7 @@ class InfoScreen extends StatefulWidget {
   State<InfoScreen> createState() => _InfoScreenState();
 }
 
-class _InfoScreenState extends State<InfoScreen>
-    with SingleTickerProviderStateMixin {
+class _InfoScreenState extends State<InfoScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -34,6 +33,7 @@ class _InfoScreenState extends State<InfoScreen>
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -50,7 +50,10 @@ class _InfoScreenState extends State<InfoScreen>
         ),
         title: const Text(
           'About Rideshares.org',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -71,7 +74,10 @@ class _InfoScreenState extends State<InfoScreen>
               icon: Icon(Icons.directions_car_rounded),
               text: 'For Travelers',
             ),
-            Tab(icon: Icon(Icons.code_rounded), text: 'For Developers'),
+            Tab(
+              icon: Icon(Icons.code_rounded),
+              text: 'For Developers',
+            ),
           ],
         ),
       ),
@@ -90,11 +96,12 @@ class _InfoScreenState extends State<InfoScreen>
   // ==========================================
   // TAB 1: FOR TRAVELERS & DRIVERS
   // ==========================================
-  Widget _buildTravelersTab(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-  ) {
+  Widget _buildTravelersTab(BuildContext context, ThemeData theme, bool isDark) {
+    final primaryColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8);
+    final textHeader = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textBody = isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -104,9 +111,10 @@ class _InfoScreenState extends State<InfoScreen>
             duration: const Duration(milliseconds: 400),
             child: Text(
               '100% Nostr-Native Ridesharing',
-              style: theme.textTheme.headlineSmall?.copyWith(
+              style: TextStyle(
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1976D2),
+                color: primaryColor,
               ),
             ),
           ),
@@ -115,9 +123,10 @@ class _InfoScreenState extends State<InfoScreen>
             duration: const Duration(milliseconds: 500),
             child: Text(
               'Rideshares.org is a free, open, peer-to-peer ridesharing network built on the open Nostr protocol. There are no corporate middlemen, no take rates, and no centralized gatekeepers.\n\nYou own your identity, your rides, and your reputation. Because the network is open, anyone can build a client. If you prefer another app with different features or aesthetics (like Trip Hopping), your rides and account are already there. No importing, no exporting, and no lock-in.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                height: 1.5,
-                color: theme.colorScheme.onSurfaceVariant,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.55,
+                color: textBody,
               ),
             ),
           ),
@@ -136,6 +145,7 @@ class _InfoScreenState extends State<InfoScreen>
             child: _buildFeatureCard(
               context,
               theme,
+              isDark: isDark,
               icon: Icons.vpn_key_rounded,
               title: 'Sovereign Cryptographic Identity',
               description:
@@ -147,6 +157,7 @@ class _InfoScreenState extends State<InfoScreen>
             child: _buildFeatureCard(
               context,
               theme,
+              isDark: isDark,
               icon: Icons.alt_route_rounded,
               title: 'Ride Offers & Ride Requests (NIP-99)',
               description:
@@ -158,6 +169,7 @@ class _InfoScreenState extends State<InfoScreen>
             child: _buildFeatureCard(
               context,
               theme,
+              isDark: isDark,
               icon: Icons.explore_rounded,
               title: 'Geohash Radius & Route Discovery',
               description:
@@ -169,6 +181,7 @@ class _InfoScreenState extends State<InfoScreen>
             child: _buildFeatureCard(
               context,
               theme,
+              isDark: isDark,
               icon: Icons.handshake_outlined,
               title: 'Travel Companions & Hitchhiking Partners',
               description:
@@ -180,6 +193,7 @@ class _InfoScreenState extends State<InfoScreen>
             child: _buildFeatureCard(
               context,
               theme,
+              isDark: isDark,
               icon: Icons.currency_bitcoin_rounded,
               title: 'Free, Cost-Sharing, or Bitcoin/Lightning',
               description:
@@ -188,20 +202,26 @@ class _InfoScreenState extends State<InfoScreen>
           ),
 
           const SizedBox(height: 24),
-          Divider(color: theme.dividerColor.withValues(alpha: 0.5)),
+          Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           const SizedBox(height: 16),
 
           Text(
             'Understanding Nostr Keypairs',
-            style: theme.textTheme.titleMedium?.copyWith(
+            style: TextStyle(
+              fontSize: 18,
               fontWeight: FontWeight.bold,
+              color: textHeader,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '• Public Key (npub): Your public travel identity. Share this freely with drivers and passengers.\n'
             '• Private Key (nsec): Your secret signing key. Never share this with anyone! It is saved securely on your device or managed in Amber.',
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.6,
+              color: textBody,
+            ),
           ),
           const SizedBox(height: 32),
         ],
@@ -212,18 +232,20 @@ class _InfoScreenState extends State<InfoScreen>
   // ==========================================
   // ANDROID DISTRIBUTION SECTION
   // ==========================================
-  Widget _buildAndroidDownloadSection(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-  ) {
+  Widget _buildAndroidDownloadSection(BuildContext context, ThemeData theme, bool isDark) {
+    final primaryColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8);
+    final textHeader = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textBody = isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155);
+    final textSub = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.all(18.0),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.4),
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE),
+          width: 1.5,
         ),
       ),
       child: Column(
@@ -234,14 +256,10 @@ class _InfoScreenState extends State<InfoScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.android_rounded,
-                  color: theme.colorScheme.primary,
-                  size: 26,
-                ),
+                child: Icon(Icons.android_rounded, color: primaryColor, size: 26),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -250,15 +268,18 @@ class _InfoScreenState extends State<InfoScreen>
                   children: [
                     Text(
                       'Android App & Direct APK',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: TextStyle(
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
+                        color: textHeader,
                       ),
                     ),
                     Text(
                       '100% Free & Open-Source (FOSS) • No Google Play Required',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
+                      style: TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
+                        color: primaryColor,
                       ),
                     ),
                   ],
@@ -269,45 +290,46 @@ class _InfoScreenState extends State<InfoScreen>
           const SizedBox(height: 12),
           Text(
             'Rideshares.org is distributed independently without corporate trackers, Google Play account requirements, or middlemen. Anyone can install the Android APK directly.',
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: textBody,
+            ),
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      size: 18,
-                      color: theme.colorScheme.primary,
-                    ),
+                    Icon(Icons.info_outline_rounded, size: 18, color: primaryColor),
                     const SizedBox(width: 8),
                     Text(
                       'How to Install & Update Outside Google Play:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface,
+                        fontSize: 13,
+                        color: textHeader,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   '1. Tap "Download Android APK" below and open the downloaded file.\n'
                   '2. If Android prompts "Install unknown apps", tap Settings and allow "From this source".\n'
                   '3. Built-in updates: The app checks for newer releases automatically, or you can manage updates with Obtainium / F-Droid.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    height: 1.45,
-                    color: theme.colorScheme.onSurfaceVariant,
+                  style: TextStyle(
+                    height: 1.5,
+                    fontSize: 12.5,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                   ),
                 ),
               ],
@@ -323,12 +345,13 @@ class _InfoScreenState extends State<InfoScreen>
                   FutureBuilder<String>(
                     future: UpdateCheckerService.getCurrentVersion(),
                     builder: (context, snapshot) {
-                      final ver = snapshot.data ?? '1.1.0';
+                      final ver = snapshot.data ?? '1.1.3';
                       return Text(
                         'Installed Version: v$ver',
-                        style: const TextStyle(
-                          fontSize: 13,
+                        style: TextStyle(
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w600,
+                          color: textHeader,
                         ),
                       );
                     },
@@ -339,8 +362,8 @@ class _InfoScreenState extends State<InfoScreen>
                       child: Text(
                         'New release available: v${updateInfo.latestVersion}',
                         style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.green,
+                          fontSize: 13.5,
+                          color: Color(0xFF4ADE80),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -351,6 +374,10 @@ class _InfoScreenState extends State<InfoScreen>
                     runSpacing: 10,
                     children: [
                       FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                        ),
                         onPressed: () {
                           launchUrl(
                             Uri.parse(
@@ -363,37 +390,37 @@ class _InfoScreenState extends State<InfoScreen>
                         label: const Text('Download Android APK'),
                       ),
                       OutlinedButton.icon(
-                        onPressed:
-                            updateService.isChecking
-                                ? null
-                                : () async {
-                                  final res =
-                                      await updateService.checkForUpdates();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          res.isUpdateAvailable
-                                              ? 'New version v${res.latestVersion} available!'
-                                              : 'You are on the latest version (v${res.currentVersion}).',
-                                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryColor,
+                          side: BorderSide(color: primaryColor),
+                        ),
+                        onPressed: updateService.isChecking
+                            ? null
+                            : () async {
+                                final res = await updateService.checkForUpdates();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        res.isUpdateAvailable
+                                            ? 'New version v${res.latestVersion} available!'
+                                            : 'You are on the latest version (v${res.currentVersion}).',
                                       ),
-                                    );
-                                  }
-                                },
-                        icon:
-                            updateService.isChecking
-                                ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Icon(Icons.refresh, size: 16),
+                                    ),
+                                  );
+                                }
+                              },
+                        icon: updateService.isChecking
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.refresh, size: 16),
                         label: const Text('Check for Updates'),
                       ),
                       TextButton.icon(
+                        style: TextButton.styleFrom(foregroundColor: primaryColor),
                         onPressed: () {
                           launchUrl(
                             Uri.parse(UpdateCheckerService.releasesWebUrl),
@@ -417,18 +444,29 @@ class _InfoScreenState extends State<InfoScreen>
   Widget _buildFeatureCard(
     BuildContext context,
     ThemeData theme, {
+    required bool isDark,
     required IconData icon,
     required String title,
     required String description,
   }) {
+    final primaryColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8);
+    final textHeader = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textBody = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
+
     return Card(
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      elevation: isDark ? 2 : 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: const Color(0xFF1976D2), size: 28),
+            Icon(icon, color: primaryColor, size: 28),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -436,16 +474,19 @@ class _InfoScreenState extends State<InfoScreen>
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: textHeader,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     description,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      height: 1.4,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textBody,
+                      height: 1.45,
                     ),
                   ),
                 ],
@@ -460,11 +501,13 @@ class _InfoScreenState extends State<InfoScreen>
   // ==========================================
   // TAB 2: FOR DEVELOPERS & PROTOCOL SPECS
   // ==========================================
-  Widget _buildDevelopersTab(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-  ) {
+  Widget _buildDevelopersTab(BuildContext context, ThemeData theme, bool isDark) {
+    final primaryColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8);
+    final textHeader = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textBody = isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155);
+    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -474,8 +517,9 @@ class _InfoScreenState extends State<InfoScreen>
             duration: const Duration(milliseconds: 400),
             child: Text(
               'Protocol Specifications & Interoperability',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF1976D2),
+              style: TextStyle(
+                fontSize: 22,
+                color: primaryColor,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -485,7 +529,11 @@ class _InfoScreenState extends State<InfoScreen>
             duration: const Duration(milliseconds: 500),
             child: Text(
               'Rideshares.org defines the standard Nostr protocol specification for ridesharing, hitchhiking, and transit coordination. Any Nostr client can broadcast and query these events for instant ecosystem interoperability.',
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: textBody,
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -494,50 +542,28 @@ class _InfoScreenState extends State<InfoScreen>
           FadeInUp(
             duration: const Duration(milliseconds: 550),
             child: Card(
+              color: cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: cardBorder),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'NIPs & Event Kinds Implemented',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1976D2),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildNipRow(
-                      'Kind 30402',
-                      'NIP-99',
-                      'Classified Listings for Ride Offers, Requests, & Travel Partners',
-                    ),
-                    _buildNipRow(
-                      'Kind 5',
-                      'NIP-09',
-                      'Event Deletion Requests for removing cancelled or obsolete rides',
-                    ),
-                    _buildNipRow(
-                      'NIP-01',
-                      'Core Nostr',
-                      'BIP-340 Schnorr Signatures, REQ Filters, & WebSocket Transports',
-                    ),
-                    _buildNipRow(
-                      'NIP-07',
-                      'Web Signers',
-                      'Browser extension signing via window.nostr (Alby, nos2x, etc.)',
-                    ),
-                    _buildNipRow(
-                      'NIP-46',
-                      'Remote Signer',
-                      'Bunker / NostrConnect QR & RPC communication protocol',
-                    ),
-                    _buildNipRow(
-                      'NIP-55',
-                      'Android Intent',
-                      'Amber external intent application signing on Android',
-                    ),
+                    _buildNipRow('Kind 30402', 'NIP-99', 'Classified Listings for Ride Offers, Requests, & Travel Partners', isDark),
+                    _buildNipRow('Kind 5', 'NIP-09', 'Event Deletion Requests for removing cancelled or obsolete rides', isDark),
+                    _buildNipRow('NIP-01', 'Core Nostr', 'BIP-340 Schnorr Signatures, REQ Filters, & WebSocket Transports', isDark),
+                    _buildNipRow('NIP-07', 'Web Signers', 'Browser extension signing via window.nostr (Alby, nos2x, etc.)', isDark),
+                    _buildNipRow('NIP-46', 'Remote Signer', 'Bunker / NostrConnect QR & RPC communication protocol', isDark),
+                    _buildNipRow('NIP-55', 'Android Intent', 'Amber external intent application signing on Android', isDark),
                   ],
                 ),
               ),
@@ -549,21 +575,23 @@ class _InfoScreenState extends State<InfoScreen>
           FadeInUp(
             duration: const Duration(milliseconds: 600),
             child: Card(
+              color: cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: cardBorder),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Default Bootstrap Relays',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1976D2),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       '• wss://relay.damus.io\n'
                       '• wss://nos.lol\n'
                       '• wss://relay.primal.net\n'
@@ -573,6 +601,7 @@ class _InfoScreenState extends State<InfoScreen>
                         fontSize: 14,
                         fontFamily: 'monospace',
                         height: 1.6,
+                        color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
                       ),
                     ),
                   ],
@@ -586,109 +615,58 @@ class _InfoScreenState extends State<InfoScreen>
           FadeInUp(
             duration: const Duration(milliseconds: 650),
             child: Card(
+              color: cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: cardBorder),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Kind 30402 Rideshare Tag Structure',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1976D2),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Kind 30402 is a parameterized replaceable event. Updating a listing is accomplished by re-publishing with the identical "d" tag and latest created_at timestamp.',
-                      style: TextStyle(fontSize: 14, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.45,
+                        color: textBody,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Table(
-                      border: TableBorder.all(color: Colors.grey.shade400),
+                      border: TableBorder.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                       columnWidths: const {
                         0: FlexColumnWidth(1.2),
                         1: FlexColumnWidth(1.2),
                         2: FlexColumnWidth(2.6),
                       },
                       children: [
-                        _buildTableHeader(),
-                        _buildTableRow(
-                          'd',
-                          'String (UUID/slug)',
-                          'Unique listing ID (enables editing & status updates)',
-                        ),
-                        _buildTableRow(
-                          'title',
-                          'String',
-                          'Human-readable title (e.g. "Rideshare Denver to Moab")',
-                        ),
-                        _buildTableRow(
-                          't',
-                          'Taxonomy tags',
-                          'rideshare, ride-offer, ride-request, travel-partner, rideshares.org',
-                        ),
-                        _buildTableRow(
-                          'location',
-                          'String',
-                          'Human-readable Origin city / place name',
-                        ),
-                        _buildTableRow(
-                          'location_dest',
-                          'String',
-                          'Human-readable Destination city / place name',
-                        ),
-                        _buildTableRow(
-                          'departure_utc',
-                          'Unix seconds',
-                          'Scheduled departure timestamp in UTC',
-                        ),
-                        _buildTableRow(
-                          'origin_tz',
-                          'IANA TZ string',
-                          'Origin local timezone (e.g. "America/Denver")',
-                        ),
-                        _buildTableRow(
-                          'g',
-                          'Geohash prefix',
-                          'Origin cascading geohash (length 1–6) for proximity filters',
-                        ),
-                        _buildTableRow(
-                          'dg',
-                          'Geohash prefix',
-                          'Destination cascading geohash (length 1–6)',
-                        ),
-                        _buildTableRow(
-                          'origin_lat / origin_lon',
-                          'Float strings',
-                          'Origin map coordinates',
-                        ),
-                        _buildTableRow(
-                          'dest_lat / dest_lon',
-                          'Float strings',
-                          'Destination map coordinates',
-                        ),
-                        _buildTableRow(
-                          'price',
-                          '[amount, currency]',
-                          '["0", "USD"] (Free/Share) or ["25000", "SATS"]',
-                        ),
-                        _buildTableRow(
-                          'status',
-                          'active / sold / cancelled',
-                          'Listing lifecycle status ("sold" = filled)',
-                        ),
-                        _buildTableRow(
-                          'published_at',
-                          'Unix seconds',
-                          'Original publication timestamp (retained across edits)',
-                        ),
-                        _buildTableRow(
-                          'summary',
-                          'String',
-                          'Short summary tagline',
-                        ),
+                        _buildTableHeader(isDark),
+                        _buildTableRow('d', 'String (UUID/slug)', 'Unique listing ID (enables editing & status updates)', isDark),
+                        _buildTableRow('title', 'String', 'Human-readable title (e.g. "Rideshare Denver to Moab")', isDark),
+                        _buildTableRow('t', 'Taxonomy tags', 'rideshare, ride-offer, ride-request, travel-partner, rideshares.org', isDark),
+                        _buildTableRow('location', 'String', 'Human-readable Origin city / place name', isDark),
+                        _buildTableRow('location_dest', 'String', 'Human-readable Destination city / place name', isDark),
+                        _buildTableRow('departure_utc', 'Unix seconds', 'Scheduled departure timestamp in UTC', isDark),
+                        _buildTableRow('origin_tz', 'IANA TZ string', 'Origin local timezone (e.g. "America/Denver")', isDark),
+                        _buildTableRow('g', 'Geohash prefix', 'Origin cascading geohash (length 1–6) for proximity filters', isDark),
+                        _buildTableRow('dg', 'Geohash prefix', 'Destination cascading geohash (length 1–6)', isDark),
+                        _buildTableRow('origin_lat / origin_lon', 'Float strings', 'Origin map coordinates', isDark),
+                        _buildTableRow('dest_lat / dest_lon', 'Float strings', 'Destination map coordinates', isDark),
+                        _buildTableRow('price', '[amount, currency]', '["0", "USD"] (Free/Share) or ["25000", "SATS"]', isDark),
+                        _buildTableRow('status', 'active / sold / cancelled', 'Listing lifecycle status ("sold" = filled)', isDark),
+                        _buildTableRow('published_at', 'Unix seconds', 'Original publication timestamp (retained across edits)', isDark),
+                        _buildTableRow('summary', 'String', 'Short summary tagline', isDark),
                       ],
                     ),
                   ],
@@ -702,29 +680,33 @@ class _InfoScreenState extends State<InfoScreen>
           FadeInUp(
             duration: const Duration(milliseconds: 700),
             child: Card(
+              color: cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: cardBorder),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Sample Signed Event (Kind 30402)',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1976D2),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.black45 : Colors.grey.shade100,
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade400),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                        ),
                       ),
-                      child: const Text(
+                      child: SelectableText(
                         '''{
   "kind": 30402,
   "created_at": 1746522000,
@@ -755,8 +737,9 @@ class _InfoScreenState extends State<InfoScreen>
 }''',
                         style: TextStyle(
                           fontFamily: 'monospace',
-                          fontSize: 12,
-                          height: 1.4,
+                          fontSize: 12.5,
+                          height: 1.45,
+                          color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
                         ),
                       ),
                     ),
@@ -771,27 +754,34 @@ class _InfoScreenState extends State<InfoScreen>
           FadeInUp(
             duration: const Duration(milliseconds: 750),
             child: Card(
-              color:
-                  isDark
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.blue.shade50,
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE),
+                ),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Open Source & Developer Community',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1976D2),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Rideshares.org is 100% open source under the MIT License. Contributions, issues, and client adaptations are warmly welcomed!',
-                      style: TextStyle(fontSize: 14, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.45,
+                        color: textBody,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -799,11 +789,13 @@ class _InfoScreenState extends State<InfoScreen>
                       runSpacing: 10,
                       children: [
                         FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                          ),
                           onPressed: () {
                             launchUrl(
-                              Uri.parse(
-                                'https://github.com/kenflannery/rideshares-nostr',
-                              ),
+                              Uri.parse('https://github.com/kenflannery/rideshares-nostr'),
                               mode: LaunchMode.externalApplication,
                             );
                           },
@@ -811,11 +803,13 @@ class _InfoScreenState extends State<InfoScreen>
                           label: const Text('GitHub Repository'),
                         ),
                         OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: primaryColor,
+                            side: BorderSide(color: primaryColor),
+                          ),
                           onPressed: () {
                             launchUrl(
-                              Uri.parse(
-                                'https://github.com/kenflannery/rideshares-nostr/issues',
-                              ),
+                              Uri.parse('https://github.com/kenflannery/rideshares-nostr/issues'),
                               mode: LaunchMode.externalApplication,
                             );
                           },
@@ -835,7 +829,7 @@ class _InfoScreenState extends State<InfoScreen>
     );
   }
 
-  Widget _buildNipRow(String kindOrNip, String tag, String description) {
+  Widget _buildNipRow(String kindOrNip, String tag, String description, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -844,15 +838,15 @@ class _InfoScreenState extends State<InfoScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF1976D2).withValues(alpha: 0.12),
+              color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFDBEAFE),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               kindOrNip,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
-                color: Color(0xFF1976D2),
+                color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
                 fontFamily: 'monospace',
               ),
             ),
@@ -861,19 +855,27 @@ class _InfoScreenState extends State<InfoScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.15),
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               tag,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
+              ),
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               description,
-              style: const TextStyle(fontSize: 13, height: 1.35),
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+              ),
             ),
           ),
         ],
@@ -881,56 +883,83 @@ class _InfoScreenState extends State<InfoScreen>
     );
   }
 
-  TableRow _buildTableHeader() {
-    return const TableRow(
-      decoration: BoxDecoration(color: Color(0x191976D2)),
+  TableRow _buildTableHeader(bool isDark) {
+    return TableRow(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFDBEAFE),
+      ),
       children: [
         Padding(
-          padding: EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8.0),
           child: Text(
             'Tag',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: isDark ? const Color(0xFFBFDBFE) : const Color(0xFF1E3A8A),
+            ),
           ),
         ),
         Padding(
-          padding: EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8.0),
           child: Text(
             'Format',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: isDark ? const Color(0xFFBFDBFE) : const Color(0xFF1E3A8A),
+            ),
           ),
         ),
         Padding(
-          padding: EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8.0),
           child: Text(
             'Purpose & Standard',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: isDark ? const Color(0xFFBFDBFE) : const Color(0xFF1E3A8A),
+            ),
           ),
         ),
       ],
     );
   }
 
-  TableRow _buildTableRow(String tag, String format, String purpose) {
+  TableRow _buildTableRow(String tag, String format, String purpose, bool isDark) {
     return TableRow(
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
             tag,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'monospace',
               fontWeight: FontWeight.bold,
               fontSize: 12,
+              color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
             ),
           ),
         ),
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Text(format, style: const TextStyle(fontSize: 12)),
+          child: Text(
+            format,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Text(purpose, style: const TextStyle(fontSize: 12)),
+          child: Text(
+            purpose,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+            ),
+          ),
         ),
       ],
     );

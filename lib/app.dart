@@ -50,10 +50,14 @@ class RidesharesApp extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: EdgeInsets.all(8.0),
         ),
-        textTheme: TextTheme(
-          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
-          bodyMedium: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          bodySmall: TextStyle(fontSize: 12, color: Colors.grey[500]),
+        textTheme: const TextTheme(
+          headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+          titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+          bodyLarge: TextStyle(fontSize: 16, color: Colors.black87),
+          bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF424242)),
+          bodySmall: TextStyle(fontSize: 12, color: Color(0xFF616161)),
         ),
         inputDecorationTheme: const InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
@@ -62,14 +66,18 @@ class RidesharesApp extends StatelessWidget {
         ),
       ),
       darkTheme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF121820),
         colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: Colors.blueGrey,
-          accentColor: const Color(0xFF42A5F5),
+          primarySwatch: Colors.blue,
+          accentColor: const Color(0xFF64B5F6),
+          brightness: Brightness.dark,
         ).copyWith(
+          primary: const Color(0xFF64B5F6),
           secondary: const Color(0xFF4CAF50),
           tertiary: const Color(0xFFFF9800),
-          surface: const Color(0xFF303030),
-          onSurface: Colors.white, // Ensure text contrasts with background
+          surface: const Color(0xFF1E293B),
+          onSurface: Colors.white,
+          onPrimary: Colors.black,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -78,7 +86,7 @@ class RidesharesApp extends StatelessWidget {
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            shadows: [Shadow(color: Colors.black26, offset: Offset(1, 1), blurRadius: 2)],
+            shadows: [Shadow(color: Colors.black45, offset: Offset(1, 1), blurRadius: 2)],
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -91,27 +99,30 @@ class RidesharesApp extends StatelessWidget {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF1976D2),
-            side: const BorderSide(color: Color(0xFF1976D2)),
+            foregroundColor: const Color(0xFF64B5F6),
+            side: const BorderSide(color: Color(0xFF64B5F6)),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
         cardTheme: CardThemeData(
-          elevation: 4,
+          elevation: 3,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: EdgeInsets.all(8.0),
-          color: Color(0xFF424242), // Slightly lighter card for contrast
+          margin: const EdgeInsets.all(8.0),
+          color: const Color(0xFF1E293B),
         ),
         textTheme: const TextTheme(
-          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.normal, color: Colors.white),
-          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
-          bodyMedium: TextStyle(fontSize: 14, color: Colors.white70),
-          bodySmall: TextStyle(fontSize: 12, color: Colors.white54),
+          headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+          titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+          bodyLarge: TextStyle(fontSize: 16, color: Color(0xFFE2E8F0)),
+          bodyMedium: TextStyle(fontSize: 14, color: Color(0xFFCBD5E1)),
+          bodySmall: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
         ),
         inputDecorationTheme: const InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
           filled: true,
-          fillColor: Color(0xFF424242),
+          fillColor: Color(0xFF1E293B),
         ),
       ),
       themeMode: ThemeMode.system,
