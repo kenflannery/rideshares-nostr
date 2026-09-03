@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dart_geohash/dart_geohash.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:uuid/uuid.dart';
-import 'package:lat_lng_to_timezone/lat_lng_to_timezone.dart' as latLngToTimezone;
+import 'package:lat_lng_to_timezone/lat_lng_to_timezone.dart' as lat_lng_to_timezone;
 import '../../../../core/models/location_model.dart';
 import '../../../../core/models/ride_item_model.dart';
 import '../../../../core/services/auth_service.dart';
@@ -50,8 +49,6 @@ class PostRideProvider with ChangeNotifier {
   String? get successMessage => _successMessage;
   bool get isEditing => _rideToEdit != null;
 
-  // Utilities
-  final _geoHasher = GeoHasher();
   final _uuid = const Uuid();
 
   PostRideProvider(this._authService, this._nostrService, {RideItemModel? rideToEdit}) {
@@ -81,7 +78,7 @@ class PostRideProvider with ChangeNotifier {
     _descriptionController.text = ride.description;
     _priceController.text = ride.priceAmount ?? '0';
     _selectedCurrency = ride.priceCurrency ?? 'USD';
-    _dTagValue = ride.rawNostrEvent?.tags?.firstWhereOrNull((t) => t is List && t.isNotEmpty && t[0] == 'd')?[1].toString();
+    _dTagValue = ride.rawNostrEvent?.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd')?[1];
     notifyListeners();
   }
 
@@ -150,7 +147,8 @@ class PostRideProvider with ChangeNotifier {
       setError("Please enter a description.");
       return null;
     }
-    if (!_authService.isLoggedIn || _authService.signingKey == null) {
+    final signer = _authService.signer;
+    if (!_authService.isLoggedIn || signer == null) {
       setError("Authentication error. Please ensure you are logged in.");
       return null;
     }
@@ -169,7 +167,7 @@ class PostRideProvider with ChangeNotifier {
 
       String originTimezone = 'UTC';
       try {
-        final timezoneName = await latLngToTimezone.latLngToTimezoneString(_origin!.latitude, _origin!.longitude);
+        final timezoneName = lat_lng_to_timezone.latLngToTimezoneString(_origin!.latitude, _origin!.longitude);
         originTimezone = timezoneName;
         final location = tz.getLocation(timezoneName);
         final originTzDateTime = tz.TZDateTime(
@@ -191,14 +189,14 @@ class PostRideProvider with ChangeNotifier {
       final priceInput = _priceController.text.trim();
       final priceAmount = (double.tryParse(priceInput) ?? 0).toString();
 
-      final event = NostrEventHelper.createRideEvent(
+      final event = await NostrEventHelper.createRideEvent(
         rideType: _rideType,
         origin: _origin!,
         destination: _destination!,
         departureTimeUtc: departureDateTime,
         originTimezone: originTimezone,
         description: description,
-        signingKey: _authService.signingKey!,
+        signer: signer,
         dTagIdentifier: _rideToEdit != null ? _dTagValue! : _uuid.v4(),
         priceAmount: priceAmount,
         priceCurrency: _selectedCurrency,
@@ -217,7 +215,7 @@ class PostRideProvider with ChangeNotifier {
           if (success) {
             _successMessage = _rideToEdit != null ? "Ride updated successfully!" : "Ride posted successfully!";
             _resetForm();
-            setStateLoading(false); // Explicitly reset loading state
+            setStateLoading(false);
             break;
           } else {
             debugPrint("PostRideProvider: Failed to publish event (attempt $attempt).");
@@ -242,7 +240,7 @@ class PostRideProvider with ChangeNotifier {
       setError("An error occurred: $e");
       return null;
     } finally {
-      setStateLoading(false); // Ensure loading is reset in all cases
+      setStateLoading(false);
     }
   }
 

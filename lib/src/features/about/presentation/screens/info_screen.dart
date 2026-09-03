@@ -414,7 +414,7 @@ class InfoScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                       const Text('https://github.com/kenflannery/rideshares-nostr', style: TextStyle(decoration: TextDecoration.underline)),
                       const SizedBox(height: 5),
-                      const Text('Tech Stack: Flutter, NOSTR, dart_nostr'),
+                      const Text('Tech Stack: Flutter, NOSTR, NDK'),
                     ],
                   ),
                 ),

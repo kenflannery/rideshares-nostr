@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:dart_nostr/dart_nostr.dart'; // Import NostrEvent
+import 'package:ndk/ndk.dart'; // Import Nip01Event
 
 import 'location_model.dart'; // Import the Location model
 
@@ -28,7 +28,7 @@ class RideItemModel {
   final String? priceAmount;
   final String? priceCurrency;
   // Optional: Keep the original Nostr event for reference or advanced features
-  final NostrEvent? rawNostrEvent;
+  final Nip01Event? rawNostrEvent;
 
   const RideItemModel({
     required this.id,
@@ -48,13 +48,12 @@ class RideItemModel {
     this.priceCurrency,
   });
 
-  // --- Factory constructor for parsing from a NostrEvent ---
-  // This will be complex and needs careful implementation based on NIP-99 tags
-  factory RideItemModel.fromNostrEvent(NostrEvent event) {
+  // --- Factory constructor for parsing from a Nip01Event ---
+  factory RideItemModel.fromNostrEvent(Nip01Event event) {
     // Basic Info
     final id = event.id;
-    final pubkey = event.pubkey;
-    final createdAt = event.createdAt;
+    final pubkey = event.pubKey;
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000, isUtc: true);
     final content = event.content;
 
     // Parse Tags
@@ -119,7 +118,7 @@ class RideItemModel {
 
     // --- Post-processing & Defaults ---
     // Parse published_at, fall back to createdAt if missing/invalid
-    DateTime publishedAtTime = event.createdAt ?? DateTime.now().toUtc(); // Default to event creation
+    DateTime publishedAtTime = createdAt; // Default to event creation
     if (publishedAtStr != null) {
       final timestamp = int.tryParse(publishedAtStr);
       if (timestamp != null) {
@@ -128,7 +127,7 @@ class RideItemModel {
     }
 
     // Post-processing & Defaults
-    DateTime departureTime = createdAt ?? DateTime.now().toUtc(); // Fallback
+    DateTime departureTime = createdAt; // Fallback
     if (departureTimestampStr != null) {
       final timestamp = int.tryParse(departureTimestampStr);
       if (timestamp != null) {
@@ -156,13 +155,12 @@ class RideItemModel {
     );
     // --- End LocationModel creation ---
 
-    final description = content ?? title ?? 'No description.';
-
+    final description = content.isNotEmpty ? content : (title ?? 'No description.');
 
     return RideItemModel(
-      id: id ?? 'invalid_id',
-      pubkey: pubkey ?? 'invalid_pubkey',
-      createdAt: createdAt ?? DateTime.now().toUtc(),
+      id: id,
+      pubkey: pubkey,
+      createdAt: createdAt,
       publishedAt: publishedAtTime, // Parsed NIP-99 tag
       title: title ?? 'No Title',
       type: type,

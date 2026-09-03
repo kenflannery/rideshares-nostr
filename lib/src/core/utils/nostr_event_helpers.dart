@@ -1,10 +1,8 @@
-import 'package:dart_nostr/dart_nostr.dart';
+import 'package:ndk/ndk.dart';
 import 'package:dart_geohash/dart_geohash.dart';
 import 'package:intl/intl.dart'; // For formatting in title/content
 import 'package:flutter/foundation.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 
 import '../models/location_model.dart';
 import '../models/ride_item_model.dart'; // For RideType enum
@@ -27,20 +25,19 @@ class NostrEventHelper {
     return geohashTags;
   }
 
-
-  /// Creates a NIP-99 (Kind 30402) NostrEvent for a rideshare.
-  static NostrEvent? createRideEvent({
+  /// Creates a NIP-99 (Kind 30402) Nip01Event for a rideshare.
+  static Future<Nip01Event?> createRideEvent({
     required RideType rideType,
     required LocationModel origin,
     required LocationModel destination,
     required DateTime departureTimeUtc,
     required String originTimezone,
     required String description,
-    required String signingKey, // HEX private key
+    required EventSigner signer,
     required String dTagIdentifier, // Unique identifier for 'd' tag
     String priceAmount = "0", // Default to 0 (Free/Negotiable)
     String priceCurrency = "USD", // Default currency
-  }) {
+  }) async {
     try {
       // --- Prepare Event Data ---
       String offerOrRequest;
@@ -52,7 +49,7 @@ class NostrEventHelper {
         title = "Rideshare $offerOrRequest from ${origin.displayName} to ${destination.displayName}";
       } else if (rideType == RideType.partner) {
         offerOrRequest = 'travel-partner';
-        typeTag = 'hitchhiking-partner'; // Initial assumption
+        typeTag = 'hitchhiking-partner';
         title = "Looking for travel partner from ${origin.displayName} to ${destination.displayName}";
       } else { // RideType.request
         offerOrRequest = 'request';
@@ -60,22 +57,18 @@ class NostrEventHelper {
         title = "Rideshare $offerOrRequest from ${origin.displayName} to ${destination.displayName}";
       }
 
-
       // Format departure time nicely for the content string, including timezone
-      // TODO: Use timezone package for more robust formatting later if needed
       String formattedDeparture;
       try {
         final location = tz.getLocation(originTimezone);
         final localizedDt = tz.TZDateTime.from(departureTimeUtc, location);
-        formattedDeparture = DateFormat("MMM d y, hh:mm a z").format(localizedDt); // e.g., Oct 26 2023, 09:00 AM EDT
+        formattedDeparture = DateFormat("MMM d y, hh:mm a z").format(localizedDt);
       } catch(_) {
         formattedDeparture = '${DateFormat("MMM d y, HH:mm").format(departureTimeUtc)} UTC';
       }
 
-
       String fullContent;
-      if(rideType == RideType.partner) {
-        // For travel partners, we might want a more casual description
+      if (rideType == RideType.partner) {
         fullContent = '$description\n\n'
             'Looking for a travel partner from ${origin.displayName} to ${destination.displayName}.\n'
             'Departure: $formattedDeparture\n'
@@ -83,7 +76,6 @@ class NostrEventHelper {
             'Destination: ${destination.displayName}\n\n'
             'NOTE: This request was posted via Rideshares.org.';
       } else {
-        // For offers and requests, use the standard format
         fullContent = '$description\n\n'
             'Type: $offerOrRequest\n'
             'Departure: $formattedDeparture\n'
@@ -94,35 +86,26 @@ class NostrEventHelper {
 
       final summary = description.length > 100 ? '${description.substring(0, 97)}...' : description;
 
-
-
-      // Generate geohash tags (adjust maxLength as needed, e.g., 6 for reasonable area)
+      // Generate geohash tags
       final originGeohashTags = generateGeohashTags(origin.geohash, 6, "g");
       final destGeohashTags = generateGeohashTags(destination.geohash, 6, "dg");
 
       List<String> priceTag = ["price", priceAmount, priceCurrency];
 
-      // --- Get KeyPair for Signing ---
-      final NostrKeyPairs keyPairs = Nostr.instance.services.keys
-          .generateKeyPairFromExistingPrivateKey(signingKey);
-
-      // --- Prepare published_at timestamp ---
-      // Use current time for initial publication
+      // Prepare published_at timestamp
       final publishedAtTimestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final publishedAtString = publishedAtTimestamp.toString();
 
-      // --- Create Event using fromPartialData ---
-      final event = NostrEvent.fromPartialData(
+      final rawEvent = Nip01Event(
+        pubKey: signer.getPublicKey(),
         kind: 30402, // NIP-99 Classifieds
         content: fullContent,
-        keyPairs: keyPairs, // Pass NostrKeyPairs for automatic signing & pubkey
         tags: [
           ["d", dTagIdentifier], // Unique identifier for the listing
           ["title", title],
           ["published_at", publishedAtString], // NIP-99 specific tag
           ["summary", summary],
-          // published_at is handled automatically by fromPartialData if keyPairs provided
-          ["t", "Services"], // used in shopstr
+          ["t", "Services"],
           (rideType == RideType.partner) ? ["t", "travel-partner"] : ["t", "rideshare"],
           ["t", "rideshares.org"], // App-specific tag
           ["t", typeTag], // ride-offer or ride-request
@@ -131,22 +114,22 @@ class NostrEventHelper {
           [
             "image",
             "https://image.nostr.build/8b24a94d7f10547327d1e172d7273fa2b7ce8e123d316192d9611559cfccd50f.jpg"
-          ], // TODO different images for offer vs request
-          ["location", origin.displayName], // Human-readable origin still useful
+          ],
+          ["location", origin.displayName],
           priceTag,
-          ["status", "active"], // New posts are active
-          // Custom tags for easier parsing by our app:
+          ["status", "active"],
           ["departure_utc", (departureTimeUtc.millisecondsSinceEpoch ~/ 1000).toString()],
           ["origin_tz", originTimezone],
-          ["location_dest", destination.displayName], // Destination Name
+          ["location_dest", destination.displayName],
           ["origin_lat", origin.latitude.toString()],
           ["origin_lon", origin.longitude.toString()],
           ["dest_lat", destination.latitude.toString()],
           ["dest_lon", destination.longitude.toString()],
         ],
       );
-      return event;
 
+      final signedEvent = await signer.sign(rawEvent);
+      return signedEvent;
     } catch (e) {
       debugPrint("Error creating ride event object: $e");
       return null;

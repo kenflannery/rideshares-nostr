@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'package:dart_nostr/nostr/model/ease.dart';
 import 'package:flutter/foundation.dart';
-import 'package:dart_nostr/dart_nostr.dart';
+import 'package:ndk/ndk.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ride_item_model.dart';
 import '../utils/nostr_pow_helper.dart';
-import 'dart:math';
 
 enum NostrConnectionState { disconnected, connecting, connected, reconnecting }
 
@@ -21,25 +19,39 @@ class NostrService with ChangeNotifier {
 
   final int _defaultPowDifficulty = 28;
 
-  final _nostrRelaysService = Nostr.instance.services.relays;
+  late Ndk _ndk;
+  Ndk get ndk => _ndk;
 
   final _feedRideEventController = StreamController<RideItemModel>.broadcast();
   Stream<RideItemModel> get feedRideEventsStream => _feedRideEventController.stream;
 
   final Map<String, String> _activeSubscriptions = {};
-  final Map<String, NostrEventsStream> _activeStreams = {};
+  final Map<String, NdkResponse> _activeStreams = {};
 
-  Set<String> _connectedRelayUrls = {};
+  final Set<String> _connectedRelayUrls = {};
   Set<String> get connectedRelayUrls => _connectedRelayUrls;
   int get connectedRelayCount => _connectedRelayUrls.length;
   int get totalRelayCount => _relays.where((r) => r['active'] as bool).length;
 
-  static const _maxReconnectAttempts = 3;
-  int _reconnectAttempts = 0;
-  Timer? _reconnectTimer;
-
   NostrService() {
+    _initNdkDefault();
     _loadRelays();
+  }
+
+  void _initNdkDefault() {
+    _ndk = Ndk(
+      NdkConfig(
+        eventVerifier: Bip340EventVerifier(),
+        cache: MemCacheManager(),
+        bootstrapRelays: const [
+          'wss://relay.damus.io',
+          'wss://nos.lol',
+          'wss://relay.primal.net',
+          'wss://relay.trustroots.org',
+          'wss://relay.nostr.band',
+        ],
+      ),
+    );
   }
 
   Future<void> _loadRelays() async {
@@ -73,6 +85,11 @@ class NostrService with ChangeNotifier {
     final relayStrings = _relays.map((relay) => '${relay['url']}|${relay['priority']}|${relay['active']}').toList();
     await prefs.setStringList('nostr_relays', relayStrings);
   }
+
+  List<String> get activeRelayUrls => _relays
+      .where((r) => r['active'] as bool)
+      .map((r) => r['url'] as String)
+      .toList();
 
   Future<bool> addRelay(String url) async {
     if (!url.startsWith('wss://')) {
@@ -121,126 +138,47 @@ class NostrService with ChangeNotifier {
   }
 
   Future<void> init() async {
-    if (_isInitializing || _connectionState == NostrConnectionState.connected) {
-      debugPrint("NostrService: Skipping init (already initializing or connected).");
+    if (_isInitializing) {
+      debugPrint("NostrService: Skipping init (already initializing).");
       return;
     }
 
     _isInitializing = true;
     _setConnectionState(NostrConnectionState.connecting);
     _connectedRelayUrls.clear();
-    _reconnectAttempts = 0;
 
-    debugPrint("NostrService: Initializing relay connections...");
+    debugPrint("NostrService: Initializing NDK and relays...");
 
     try {
-      final activeRelayUrls = _relays
-          .where((r) => r['active'] as bool)
-          .toList()
-        ..sort((a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
+      final currentActiveUrls = activeRelayUrls;
 
-      final relayUrlsList = activeRelayUrls.map((r) => r['url'] as String).toList();
-
-      await _nostrRelaysService.init(
-        relaysUrl: relayUrlsList,
-        connectionTimeout: const Duration(seconds: 15),
-        onRelayConnectionError: (relay, error, _) {
-          debugPrint("NostrService: Error on $relay: $error");
-          _connectedRelayUrls.remove(relay);
-          _updateRelayStatus(relay, false);
-          _checkConnectionStatus();
-        },
-        onRelayConnectionDone: (relayUrl, webSocket) {
-          if (webSocket != null) {
-            debugPrint("NostrService: Connected to $relayUrl");
-            _connectedRelayUrls.add(relayUrl);
-            _updateRelayStatus(relayUrl, true);
-            _setConnectionState(NostrConnectionState.connected);
-            _reconnectAttempts = 0;
-          } else {
-            debugPrint("NostrService: Connection closed for $relayUrl");
-            _connectedRelayUrls.remove(relayUrl);
-            _updateRelayStatus(relayUrl, false);
-            _checkConnectionStatus();
-          }
-        },
-        retryOnError: true,
-        retryOnClose: true,
-        ignoreConnectionException: true,
-        shouldReconnectToRelayOnNotice: true,
-        lazyListeningToRelays: false,
-        ensureToClearRegistriesBeforeStarting: true,
+      _ndk = Ndk(
+        NdkConfig(
+          eventVerifier: Bip340EventVerifier(),
+          cache: MemCacheManager(),
+          bootstrapRelays: currentActiveUrls.isNotEmpty
+              ? currentActiveUrls
+              : const ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net'],
+        ),
       );
 
-      _updateConnectedRelaysFromRegistry();
-      _checkConnectionStatus();
-      debugPrint("NostrService: Relay init completed. Connected to: $connectedRelayCount/$totalRelayCount");
+      for (final url in currentActiveUrls) {
+        _connectedRelayUrls.add(url);
+      }
+
+      _setConnectionState(NostrConnectionState.connected);
+      debugPrint("NostrService: NDK initialized with ${currentActiveUrls.length} relays.");
     } catch (e) {
-      debugPrint("NostrService: Exception during relay init: $e");
-      _updateConnectedRelaysFromRegistry();
-      _checkConnectionStatus();
+      debugPrint("NostrService: Exception during NDK init: $e");
+      _setConnectionState(NostrConnectionState.disconnected);
     } finally {
       _isInitializing = false;
     }
   }
 
-  void _updateConnectedRelaysFromRegistry() {
-    _connectedRelayUrls.clear();
-    final registry = _nostrRelaysService.relaysWebSocketsRegistry;
-    for (final relay in _relays) {
-      final url = relay['url'] as String;
-      if (registry.containsKey(url)) {
-        _connectedRelayUrls.add(url);
-        _updateRelayStatus(url, true);
-      } else {
-        _updateRelayStatus(url, false);
-      }
-    }
-  }
-
-  void _updateRelayStatus(String relayUrl, bool isActive) {
-    final index = _relays.indexWhere((r) => r['url'] == relayUrl);
-    if (index == -1) {
-      debugPrint("NostrService: Relay not found for status update: $relayUrl");
-      return;
-    }
-    _relays[index]['active'] = isActive as Object;
-    if (!isActive) {
-      _relays[index]['priority'] = (_relays[index]['priority'] as int) + 1 as Object;
-    }
-  }
-
-  void _checkConnectionStatus() {
-    if (_connectedRelayUrls.isNotEmpty) {
-      _setConnectionState(NostrConnectionState.connected);
-    } else if (_reconnectAttempts < _maxReconnectAttempts) {
-      _setConnectionState(NostrConnectionState.disconnected);
-      _scheduleReconnect();
-    } else {
-      debugPrint("NostrService: No relays connected after max attempts. Staying disconnected.");
-      _setConnectionState(NostrConnectionState.disconnected);
-    }
-  }
-
-  void _scheduleReconnect() {
-    if (_reconnectAttempts >= _maxReconnectAttempts || _connectionState == NostrConnectionState.reconnecting) {
-      debugPrint("NostrService: Max reconnect attempts reached or already reconnecting.");
-      return;
-    }
-
-    _reconnectAttempts++;
-    final delaySeconds = min(30, pow(2, _reconnectAttempts).toInt());
-    final delay = Duration(seconds: delaySeconds);
-    debugPrint("NostrService: Scheduling reconnect attempt $_reconnectAttempts in ${delay.inSeconds}s");
-
-    _setConnectionState(NostrConnectionState.reconnecting);
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(delay, () async {
-      await init();
-    });
-  }
-
-  NostrEventsStream subscribeToRides({List<String>? originGeohashPrefixes, Function(String, NostrRequestEoseCommand)? onEose}) {
+  NdkResponse subscribeToRides({
+    List<String>? originGeohashPrefixes,
+  }) {
     const subKey = "feed_rides";
     if (_connectionState != NostrConnectionState.connected) {
       debugPrint("NostrService: Cannot subscribe, not connected (state: $_connectionState).");
@@ -251,29 +189,29 @@ class NostrService with ChangeNotifier {
 
     debugPrint("NostrService: Subscribing to rides with geohashes: $originGeohashPrefixes");
 
-    final filter = NostrFilter(
+    final filter = Filter(
       kinds: [30402],
-      t: ['rideshare', 'travel-partner'],
-      additionalFilters: originGeohashPrefixes != null && originGeohashPrefixes.isNotEmpty
-          ? {'#g': originGeohashPrefixes}
-          : null,
-      since: DateTime.now().subtract(const Duration(days: 60)),
+      tTags: ['rideshare', 'travel-partner'],
+      since: (DateTime.now().subtract(const Duration(days: 60)).millisecondsSinceEpoch ~/ 1000),
       limit: 100,
     );
 
-    final request = NostrRequest(filters: [filter]);
+    if (originGeohashPrefixes != null && originGeohashPrefixes.isNotEmpty) {
+      filter.setTag("g", originGeohashPrefixes);
+    }
 
     try {
-      final streamResult = _nostrRelaysService.startEventsSubscription(
-        request: request,
-        onEose: onEose,
+      final response = _ndk.requests.subscription(
+        filter: filter,
+        explicitRelays: activeRelayUrls.isNotEmpty ? activeRelayUrls : null,
       );
-      _activeSubscriptions[subKey] = streamResult.subscriptionId;
-      _activeStreams[subKey] = streamResult;
-      debugPrint("NostrService: Subscription started (ID: ${streamResult.subscriptionId})");
 
-      streamResult.stream.listen(
-            (NostrEvent event) {
+      _activeSubscriptions[subKey] = response.requestId;
+      _activeStreams[subKey] = response;
+      debugPrint("NostrService: Subscription started (ID: ${response.requestId})");
+
+      response.stream.listen(
+        (Nip01Event event) {
           try {
             final rideItem = RideItemModel.fromNostrEvent(event);
             _feedRideEventController.add(rideItem);
@@ -291,15 +229,15 @@ class NostrService with ChangeNotifier {
         },
       );
 
-      return streamResult;
+      return response;
     } catch (e) {
       debugPrint("NostrService: Error starting subscription ($subKey): $e");
       _handleSubscriptionError(subKey);
-      throw e;
+      rethrow;
     }
   }
 
-  NostrEventsStream? subscribeToUserRides(String userPubkeyHex) {
+  NdkResponse? subscribeToUserRides(String userPubkeyHex) {
     const subKey = "my_rides";
     if (_connectionState != NostrConnectionState.connected) {
       debugPrint("NostrService: Cannot subscribe to user rides (state: $_connectionState).");
@@ -310,21 +248,22 @@ class NostrService with ChangeNotifier {
 
     debugPrint("NostrService: Subscribing to user rides for $userPubkeyHex");
 
-    final filter = NostrFilter(
+    final filter = Filter(
       authors: [userPubkeyHex],
       kinds: [30402],
       limit: 200,
     );
-    final request = NostrRequest(filters: [filter]);
 
     try {
-      final streamResult = _nostrRelaysService.startEventsSubscription(
-        request: request,
+      final response = _ndk.requests.subscription(
+        filter: filter,
+        explicitRelays: activeRelayUrls.isNotEmpty ? activeRelayUrls : null,
       );
-      _activeSubscriptions[subKey] = streamResult.subscriptionId;
-      _activeStreams[subKey] = streamResult;
-      debugPrint("NostrService: User rides subscription started (ID: ${streamResult.subscriptionId})");
-      return streamResult;
+
+      _activeSubscriptions[subKey] = response.requestId;
+      _activeStreams[subKey] = response;
+      debugPrint("NostrService: User rides subscription started (ID: ${response.requestId})");
+      return response;
     } catch (e) {
       debugPrint("NostrService: Error starting user rides subscription: $e");
       return null;
@@ -333,12 +272,11 @@ class NostrService with ChangeNotifier {
 
   void _unsubscribe(String subscriptionKey) {
     final subId = _activeSubscriptions.remove(subscriptionKey);
-    final stream = _activeStreams.remove(subscriptionKey);
+    _activeStreams.remove(subscriptionKey);
     if (subId != null) {
       debugPrint("NostrService: Unsubscribing from $subscriptionKey (ID: $subId)");
       try {
-        _nostrRelaysService.closeEventsSubscription(subId);
-        stream?.stream.drain();
+        _ndk.requests.closeSubscription(subId);
       } catch (e) {
         debugPrint("NostrService: Error closing subscription $subId: $e");
       }
@@ -351,8 +289,6 @@ class NostrService with ChangeNotifier {
       Future.delayed(const Duration(seconds: 2), () {
         if (subKey == "feed_rides") {
           subscribeToRides();
-        } else if (subKey == "my_rides") {
-          // Re-subscribe to user rides if needed
         }
       });
     }
@@ -362,12 +298,12 @@ class NostrService with ChangeNotifier {
     _unsubscribe(subKey);
   }
 
-  Future<bool> publishEvent(NostrEvent event) async {
+  Future<bool> publishEvent(Nip01Event event) async {
     if (_connectionState != NostrConnectionState.connected) {
       debugPrint("NostrService: Cannot publish event ${event.id} (state: $_connectionState).");
       return false;
     }
-    if (event.sig == null) {
+    if (event.sig == null || event.sig!.isEmpty) {
       debugPrint("NostrService: Cannot publish unsigned event ${event.id}.");
       return false;
     }
@@ -377,15 +313,16 @@ class NostrService with ChangeNotifier {
     const maxRetries = 3;
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        final res = await _nostrRelaysService.sendEventToRelaysAsync(
-          event,
-          timeout: const Duration(seconds: 10),
+        final broadcastRes = _ndk.broadcast.broadcast(
+          nostrEvent: event,
+          specificRelays: activeRelayUrls.isNotEmpty ? activeRelayUrls : null,
         );
-        if (res.isEventAccepted ?? false) {
-          debugPrint("NostrService: Event ${event.id} published successfully.");
+        final broadcastDone = await broadcastRes.broadcastDoneFuture;
+        if (broadcastDone.isNotEmpty) {
+          debugPrint("NostrService: Event ${event.id} published successfully to ${broadcastDone.length} relays.");
           return true;
         } else {
-          debugPrint("NostrService: Attempt $attempt failed for event ${event.id}: ${res.message}");
+          debugPrint("NostrService: Attempt $attempt: No relays accepted event ${event.id}");
         }
       } catch (e) {
         debugPrint("NostrService: Error publishing event ${event.id} (attempt $attempt): $e");
@@ -401,7 +338,7 @@ class NostrService with ChangeNotifier {
   Future<bool> publishDeletionEvent({
     required String eventIdToDelete,
     String reason = "",
-    required String signingKey,
+    required EventSigner signer,
   }) async {
     if (_connectionState != NostrConnectionState.connected) {
       debugPrint("NostrService: Cannot publish deletion (state: $_connectionState).");
@@ -411,26 +348,26 @@ class NostrService with ChangeNotifier {
     debugPrint("NostrService: Publishing deletion for event $eventIdToDelete");
 
     try {
-      final keyPairs = Nostr.instance.services.keys.generateKeyPairFromExistingPrivateKey(signingKey);
-      final deletionEvent = NostrEvent.fromPartialData(
+      final rawDeletionEvent = Nip01Event(
+        pubKey: signer.getPublicKey(),
         kind: 5,
         tags: [["e", eventIdToDelete]],
         content: reason,
-        keyPairs: keyPairs,
       );
 
-      return await publishEvent(deletionEvent);
+      final signedEvent = await signer.sign(rawDeletionEvent);
+      return await publishEvent(signedEvent);
     } catch (e) {
       debugPrint("NostrService: Error publishing deletion event: $e");
       return false;
     }
   }
 
-  Future<NostrEvent?> publishEventWithPow({
+  Future<Nip01Event?> publishEventWithPow({
     required int kind,
     required List<List<String>> tags,
     required String content,
-    required String signingKey,
+    required EventSigner signer,
     int? powDifficulty,
   }) async {
     if (_connectionState != NostrConnectionState.connected) {
@@ -439,7 +376,7 @@ class NostrService with ChangeNotifier {
     }
 
     try {
-      final keyPairs = Nostr.instance.services.keys.generateKeyPairFromExistingPrivateKey(signingKey);
+      final pubKey = signer.getPublicKey();
       final targetDifficulty = powDifficulty ?? _defaultPowDifficulty;
       final creationTime = DateTime.now();
 
@@ -447,7 +384,7 @@ class NostrService with ChangeNotifier {
         targetDifficulty: targetDifficulty,
         kind: kind,
         createdAt: creationTime,
-        pubkey: keyPairs.public,
+        pubkey: pubKey,
         tags: tags,
         content: content,
       );
@@ -458,16 +395,17 @@ class NostrService with ChangeNotifier {
       }
 
       final eventTags = List<List<String>>.from(tags)..add(nonceTag);
-      final event = NostrEvent.fromPartialData(
-        keyPairs: keyPairs,
-        createdAt: creationTime,
+      final rawEvent = Nip01Event(
+        pubKey: pubKey,
+        createdAt: creationTime.millisecondsSinceEpoch ~/ 1000,
         kind: kind,
         tags: eventTags,
         content: content,
       );
 
-      final success = await publishEvent(event);
-      return success ? event : null;
+      final signedEvent = await signer.sign(rawEvent);
+      final success = await publishEvent(signedEvent);
+      return success ? signedEvent : null;
     } catch (e) {
       debugPrint("NostrService: Error publishing PoW event (kind $kind): $e");
       return null;
@@ -485,10 +423,9 @@ class NostrService with ChangeNotifier {
   @override
   Future<void> dispose() async {
     debugPrint("NostrService: Disposing...");
-    _reconnectTimer?.cancel();
     _activeSubscriptions.keys.toList().forEach(_unsubscribe);
     await _feedRideEventController.close();
-    await _nostrRelaysService.freeAllResources();
+    await _ndk.destroy();
     _setConnectionState(NostrConnectionState.disconnected);
     super.dispose();
   }

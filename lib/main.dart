@@ -12,23 +12,15 @@ import 'app.dart'; // We will create this next
 void main() async {
   // Ensure Flutter widgets are initialized
   WidgetsFlutterBinding.ensureInitialized();
-  tz.initializeTimeZones();
-
   // Initialize timezone database (required by the timezone package)
   tz.initializeTimeZones();
-  // Set the local timezone (optional, but good practice if needed globally)
-  // Example: tz.setLocalLocation(tz.getLocation('America/New_York'));
-  // For now, we'll likely handle timezone per ride based on location.
 
   // Initialize services
-  final authService = AuthService();
-  await authService.loadKey();
-
-
-  final nostrService = NostrService(); // Create instance
-  // Don't await init here, let it run in the background.
-  // UI can react to connection changes via the provider.
+  final nostrService = NostrService();
   nostrService.init();
+
+  final authService = AuthService();
+  await authService.loadKey(nostrService: nostrService);
 
   runApp(
     // MultiProvider will wrap the app with all necessary state providers

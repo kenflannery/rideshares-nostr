@@ -1,91 +1,148 @@
-import 'package:dart_nostr/nostr/instance/bech32/bech32.dart';
-import 'package:dart_nostr/nostr/instance/keys/keys.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:dart_nostr/dart_nostr.dart'; // Correct import
-import 'dart:async';
+import 'package:ndk/ndk.dart';
+import 'package:ndk_amber/ndk_amber.dart';
+import 'package:nip07_event_signer/nip07_event_signer.dart';
+import 'package:amberflutter/amberflutter.dart';
+import 'package:bip340/bip340.dart' as bip340;
 
-/// Service responsible for managing NOSTR keys (generation, storage, retrieval)
-/// using dart_nostr and flutter_secure_storage.
+import 'nostr_service.dart';
+import 'nip46_helper.dart';
+
+enum LoginType { nsec, nip07, amber, nip46 }
+
+/// Service responsible for managing NOSTR authentication and signers
+/// (Local Key, NIP-07 extension, Amber NIP-55, Remote Bunker NIP-46).
 class AuthService with ChangeNotifier {
   final _storage = const FlutterSecureStorage();
-  final _nsecStorageKey = 'nostr_nsec_key';
+
+  static const _loginTypeStorageKey = 'nostr_login_type';
+  static const _nsecStorageKey = 'nostr_nsec_key';
+  static const _bunkerConnectionStorageKey = 'nostr_bunker_connection';
+  static const _bunkerUserPubkeyStorageKey = 'nostr_bunker_user_pubkey';
+  static const _amberPubkeyStorageKey = 'nostr_amber_pubkey';
+  static const _nip07PubkeyStorageKey = 'nostr_nip07_pubkey';
 
   // Internal state
+  LoginType? _loginType;
+  EventSigner? _signer;
   String? _nsec;
   String? _hexPrivateKey;
   String? _npub;
   String? _hexPublicKey;
-  bool _showNsec = false; // New flag to toggle nsec visibility
+  bool _showNsec = false;
 
-  // Public getters
+  // Getters
+  LoginType? get loginType => _loginType;
+  EventSigner? get signer => _signer;
   String? get npub => _npub;
-  bool get isLoggedIn => _nsec != null && _npub != null;
-  String? get signingKey => _hexPrivateKey; // Hex private key for signing
-  bool get showNsec => _showNsec; // Getter for visibility state
-  String? get nsec => _nsec != null ? (_showNsec ? _nsec : _nsec!.replaceAll(RegExp(r'[a-zA-Z0-9]'), '•')) : 'Not available';
+  String? get hexPublicKey => _hexPublicKey;
+  String? get signingKey => _hexPrivateKey;
+  bool get isLoggedIn => _signer != null && _hexPublicKey != null;
+  bool get showNsec => _showNsec;
+  String? get nsec => _nsec != null
+      ? (_showNsec ? _nsec : _nsec!.replaceAll(RegExp(r'[a-zA-Z0-9]'), '•'))
+      : 'Not available';
 
-  // Access Correct Services
-  final NostrKeys _keysService = Nostr.instance.services.keys;
-  final NostrBech32 _bech32Service = Nostr.instance.services.bech32;
-
-  Future<void> loadKey() async {
+  Future<void> loadKey({NostrService? nostrService}) async {
     _clearInternalState(notify: false);
-    final storedNsec = await _storage.read(key: _nsecStorageKey);
 
-    if (storedNsec != null && storedNsec.isNotEmpty) {
-      try {
-        // 1. Decode nsec -> hex using SPECIFIC Bech32 method
-        final hexPrivKey = _bech32Service.decodeNsecKeyToPrivateKey(storedNsec);
+    final storedType = await _storage.read(key: _loginTypeStorageKey);
 
-        // 2. Derive public key using Keys Service
-        final hexPubKey = _keysService.derivePublicKey(privateKey: hexPrivKey);
-
-        // 3. Encode public key -> npub using SPECIFIC Bech32 method
-        final npubKey = _bech32Service.encodePublicKeyToNpub(hexPubKey);
-
-        // Update internal state
-        _nsec = storedNsec;
-        _hexPrivateKey = hexPrivKey;
-        _hexPublicKey = hexPubKey;
-        _npub = npubKey;
-
-        debugPrint('AuthService: NOSTR Key loaded successfully. Npub: $_npub');
-      } catch (e) {
-        debugPrint('AuthService: Error loading/parsing stored NOSTR key: $e');
-        await clearKey();
+    if (storedType == LoginType.nsec.name || storedType == null) {
+      final storedNsec = await _storage.read(key: _nsecStorageKey);
+      if (storedNsec != null && storedNsec.isNotEmpty) {
+        await _loadNsec(storedNsec);
       }
-    } else {
-      debugPrint('AuthService: No NOSTR key found in storage.');
+    } else if (storedType == LoginType.amber.name) {
+      final storedPubkey = await _storage.read(key: _amberPubkeyStorageKey);
+      if (storedPubkey != null && storedPubkey.isNotEmpty) {
+        await _setupAmberSigner(storedPubkey);
+      }
+    } else if (storedType == LoginType.nip07.name) {
+      final storedPubkey = await _storage.read(key: _nip07PubkeyStorageKey);
+      if (storedPubkey != null && storedPubkey.isNotEmpty) {
+        await _setupNip07Signer(storedPubkey);
+      }
+    } else if (storedType == LoginType.nip46.name && nostrService != null) {
+      final storedBunkerJson = await _storage.read(key: _bunkerConnectionStorageKey);
+      final storedUserPubkey = await _storage.read(key: _bunkerUserPubkeyStorageKey);
+      if (storedBunkerJson != null && storedBunkerJson.isNotEmpty) {
+        try {
+          final bunkerConn = BunkerConnection.fromJson(jsonDecode(storedBunkerJson));
+          await _setupBunkerSigner(bunkerConn, nostrService, explicitUserPubkey: storedUserPubkey);
+        } catch (e) {
+          debugPrint("AuthService: Error reloading bunker connection: $e");
+          await clearKey();
+        }
+      }
     }
+
     notifyListeners();
   }
 
-  Future<String?> generateNewKey() async {
+  Future<void> _loadNsec(String nsecInput) async {
     try {
-      // 1. Generate Hex Key Pair using Keys Service
-      final NostrKeyPairs keyPair = _keysService.generateKeyPair();
-      final hexPrivKey = keyPair.private;
-      final hexPubKey = keyPair.public;
+      String hexPrivKey;
+      if (nsecInput.startsWith('nsec')) {
+        hexPrivKey = Nip19.decode(nsecInput);
+      } else {
+        hexPrivKey = nsecInput;
+      }
 
-      // 2. Encode private key -> nsec using SPECIFIC Bech32 method
-      final nsecKey = _bech32Service.encodePrivateKeyToNsec(hexPrivKey);
+      final hexPubKey = bip340.getPublicKey(hexPrivKey);
+      final npubKey = Nip19.encodePubKey(hexPubKey);
+      final nsecKey = Nip19.encodePrivateKey(hexPrivKey);
 
-      // 3. Encode public key -> npub using SPECIFIC Bech32 method
-      final npubKey = _bech32Service.encodePublicKeyToNpub(hexPubKey);
+      _signer = Bip340EventSigner(
+        privateKey: hexPrivKey,
+        publicKey: hexPubKey,
+      );
 
-      // 4. Store nsec securely
-      await _storage.write(key: _nsecStorageKey, value: nsecKey);
-
-      // 5. Update internal state
       _nsec = nsecKey;
       _hexPrivateKey = hexPrivKey;
       _hexPublicKey = hexPubKey;
       _npub = npubKey;
+      _loginType = LoginType.nsec;
+
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.nsec.name);
+      await _storage.write(key: _nsecStorageKey, value: nsecKey);
+      debugPrint('AuthService: Local Nostr key loaded. Npub: $_npub');
+    } catch (e) {
+      debugPrint('AuthService: Error loading nsec: $e');
+      await clearKey();
+    }
+  }
+
+  Future<String?> generateNewKey() async {
+    try {
+      final random = Random.secure();
+      final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+      final hexPrivKey = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      final hexPubKey = bip340.getPublicKey(hexPrivKey);
+      final nsecKey = Nip19.encodePrivateKey(hexPrivKey);
+      final npubKey = Nip19.encodePubKey(hexPubKey);
+
+      _signer = Bip340EventSigner(
+        privateKey: hexPrivKey,
+        publicKey: hexPubKey,
+      );
+
+      _nsec = nsecKey;
+      _hexPrivateKey = hexPrivKey;
+      _hexPublicKey = hexPubKey;
+      _npub = npubKey;
+      _loginType = LoginType.nsec;
+
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.nsec.name);
+      await _storage.write(key: _nsecStorageKey, value: nsecKey);
 
       debugPrint('AuthService: New NOSTR Key generated and stored. Npub: $_npub');
       notifyListeners();
-      return nsecKey; // Return nsec for user backup
+      return nsecKey;
     } catch (e) {
       debugPrint('AuthService: Error generating new NOSTR key: $e');
       await clearKey();
@@ -94,42 +151,251 @@ class AuthService with ChangeNotifier {
   }
 
   Future<bool> importKey(String nsecInput) async {
-    if (nsecInput.isEmpty || !nsecInput.startsWith('nsec')) {
-      debugPrint('AuthService: Import failed - Invalid nsec format.');
+    final trimmed = nsecInput.trim();
+    if (trimmed.isEmpty) {
+      debugPrint('AuthService: Import failed - Empty input.');
       return false;
     }
     try {
-      // 1. Validate by decoding nsec -> hex using SPECIFIC Bech32 method
-      final hexPrivKey = _bech32Service.decodeNsecKeyToPrivateKey(nsecInput);
-
-      // 2. Derive public key using Keys Service
-      final hexPubKey = _keysService.derivePublicKey(privateKey: hexPrivKey);
-
-      // 3. Re-encode public key -> npub using SPECIFIC Bech32 method
-      final npubKey = _bech32Service.encodePublicKeyToNpub(hexPubKey);
-
-      // 4. Store validated nsec
-      await _storage.write(key: _nsecStorageKey, value: nsecInput);
-
-      // 5. Update internal state
-      _nsec = nsecInput;
-      _hexPrivateKey = hexPrivKey;
-      _hexPublicKey = hexPubKey;
-      _npub = npubKey;
-
-      debugPrint('AuthService: NOSTR Key imported successfully. Npub: $_npub');
+      await _loadNsec(trimmed);
       notifyListeners();
-      return true;
+      return isLoggedIn;
     } catch (e) {
-      debugPrint('AuthService: Error importing provided NOSTR key (nsec: $nsecInput): $e');
+      debugPrint('AuthService: Error importing provided NOSTR key: $e');
       return false;
     }
   }
 
+  Future<bool> isAmberAvailable() async {
+    try {
+      final amberDs = AmberFlutterDS(Amberflutter());
+      return await amberDs.amber.isAppInstalled();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> loginWithAmber() async {
+    try {
+      final amberDs = AmberFlutterDS(Amberflutter());
+      final res = await amberDs.amber.getPublicKey();
+      final pubkeyHexOrNpub = res['signature'] ?? res['pubkey'];
+
+      if (pubkeyHexOrNpub == null || pubkeyHexOrNpub.isEmpty) {
+        debugPrint('AuthService: No public key returned from Amber.');
+        return false;
+      }
+
+      String hexPubKey;
+      String npubKey;
+      if (pubkeyHexOrNpub.startsWith('npub')) {
+        hexPubKey = Nip19.decode(pubkeyHexOrNpub);
+        npubKey = pubkeyHexOrNpub;
+      } else {
+        hexPubKey = pubkeyHexOrNpub;
+        npubKey = Nip19.encodePubKey(hexPubKey);
+      }
+
+      await _setupAmberSigner(hexPubKey);
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.amber.name);
+      await _storage.write(key: _amberPubkeyStorageKey, value: hexPubKey);
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('AuthService: Error logging in with Amber: $e');
+      return false;
+    }
+  }
+
+  Future<void> _setupAmberSigner(String hexPubKey) async {
+    final amberDs = AmberFlutterDS(Amberflutter());
+    _signer = AmberEventSigner(
+      publicKey: hexPubKey,
+      amberFlutterDS: amberDs,
+    );
+    _hexPublicKey = hexPubKey;
+    _npub = Nip19.encodePubKey(hexPubKey);
+    _loginType = LoginType.amber;
+    _hexPrivateKey = null;
+    _nsec = null;
+  }
+
+  Future<bool> loginWithNip07() async {
+    try {
+      final nip07Signer = Nip07EventSigner();
+      final pubKey = await nip07Signer.getPublicKeyAsync();
+
+      String hexPubKey;
+      if (pubKey.startsWith('npub')) {
+        hexPubKey = Nip19.decode(pubKey);
+      } else {
+        hexPubKey = pubKey;
+      }
+
+      await _setupNip07Signer(hexPubKey);
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.nip07.name);
+      await _storage.write(key: _nip07PubkeyStorageKey, value: hexPubKey);
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('AuthService: Error logging in with NIP-07 extension: $e');
+      return false;
+    }
+  }
+
+  Future<void> _setupNip07Signer(String hexPubKey) async {
+    _signer = Nip07EventSigner(cachedPublicKey: hexPubKey);
+    _hexPublicKey = hexPubKey;
+    _npub = Nip19.encodePubKey(hexPubKey);
+    _loginType = LoginType.nip07;
+    _hexPrivateKey = null;
+    _nsec = null;
+  }
+
+  Future<bool> loginWithBunkerUrl(
+    String bunkerUrl,
+    NostrService nostrService, {
+    Function(String)? authCallback,
+  }) async {
+    try {
+      final connection = await nostrService.ndk.bunkers.connectWithBunkerUrl(
+        bunkerUrl.trim(),
+        authCallback: authCallback,
+      );
+
+      if (connection == null) {
+        debugPrint('AuthService: Failed to connect to bunker.');
+        return false;
+      }
+
+      await _setupBunkerSigner(connection, nostrService, authCallback: authCallback);
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.nip46.name);
+      await _storage.write(
+        key: _bunkerConnectionStorageKey,
+        value: jsonEncode(connection.toJson()),
+      );
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('AuthService: Error connecting with Bunker URL: $e');
+      return false;
+    }
+  }
+
+  Future<bool> loginWithNostrConnect(
+    NostrConnect nostrConnect,
+    NostrService nostrService, {
+    Function(String)? authCallback,
+  }) async {
+    try {
+      final connection = await nostrService.ndk.bunkers.connectWithNostrConnect(
+        nostrConnect,
+        authCallback: authCallback,
+      );
+
+      if (connection == null) {
+        debugPrint('AuthService: Failed to connect via Nostr Connect.');
+        return false;
+      }
+
+      await _setupBunkerSigner(connection, nostrService, authCallback: authCallback);
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.nip46.name);
+      await _storage.write(
+        key: _bunkerConnectionStorageKey,
+        value: jsonEncode(connection.toJson()),
+      );
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('AuthService: Error connecting with NostrConnect: $e');
+      return false;
+    }
+  }
+
+  Future<bool> loginWithNip46Connection(
+    BunkerConnection connection,
+    NostrService nostrService, {
+    String? explicitUserPubkey,
+    Function(String)? authCallback,
+  }) async {
+    try {
+      await _setupBunkerSigner(
+        connection,
+        nostrService,
+        explicitUserPubkey: explicitUserPubkey,
+        authCallback: authCallback,
+      );
+      await _storage.write(key: _loginTypeStorageKey, value: LoginType.nip46.name);
+      await _storage.write(
+        key: _bunkerConnectionStorageKey,
+        value: jsonEncode(connection.toJson()),
+      );
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('AuthService: Error connecting with BunkerConnection: $e');
+      return false;
+    }
+  }
+
+  Future<void> _setupBunkerSigner(
+    BunkerConnection connection,
+    NostrService nostrService, {
+    String? explicitUserPubkey,
+    Function(String)? authCallback,
+  }) async {
+    String? resolvedUserPubkey = explicitUserPubkey;
+
+    if (resolvedUserPubkey == null || resolvedUserPubkey.isEmpty) {
+      try {
+        final fetched = await RideshareNip46Signer.fetchUserPublicKey(
+          connection: connection,
+          nostrService: nostrService,
+        );
+        if (fetched != null && fetched.isNotEmpty) {
+          resolvedUserPubkey = fetched;
+        }
+      } catch (e) {
+        debugPrint('AuthService: fetchUserPublicKey error: $e');
+      }
+    }
+
+    resolvedUserPubkey ??= connection.remotePubkey;
+
+    if (resolvedUserPubkey.startsWith('npub')) {
+      resolvedUserPubkey = Nip19.decode(resolvedUserPubkey);
+    }
+
+    final signer = RideshareNip46Signer(
+      connection: connection,
+      userPublicKey: resolvedUserPubkey,
+      nostrService: nostrService,
+    );
+
+    _signer = signer;
+    _hexPublicKey = resolvedUserPubkey;
+    _npub = Nip19.encodePubKey(resolvedUserPubkey);
+    _loginType = LoginType.nip46;
+    _hexPrivateKey = null;
+    _nsec = null;
+
+    await _storage.write(key: _bunkerUserPubkeyStorageKey, value: resolvedUserPubkey);
+  }
+
   Future<void> clearKey() async {
+    await _storage.delete(key: _loginTypeStorageKey);
     await _storage.delete(key: _nsecStorageKey);
+    await _storage.delete(key: _bunkerConnectionStorageKey);
+    await _storage.delete(key: _bunkerUserPubkeyStorageKey);
+    await _storage.delete(key: _amberPubkeyStorageKey);
+    await _storage.delete(key: _nip07PubkeyStorageKey);
     _clearInternalState(notify: true);
-    debugPrint('AuthService: Stored NOSTR key cleared.');
+    debugPrint('AuthService: Stored NOSTR authentication cleared.');
   }
 
   void toggleNsecVisibility() {
@@ -138,11 +404,13 @@ class AuthService with ChangeNotifier {
   }
 
   void _clearInternalState({bool notify = true}) {
+    _loginType = null;
+    _signer = null;
     _nsec = null;
     _hexPrivateKey = null;
     _npub = null;
     _hexPublicKey = null;
-    _showNsec = false; // Reset visibility on logout
+    _showNsec = false;
     if (notify) {
       notifyListeners();
     }

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:dart_nostr/dart_nostr.dart';
+import 'package:ndk/ndk.dart';
 import 'package:collection/collection.dart';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/models/ride_item_model.dart';
@@ -10,10 +10,10 @@ import '../../../../core/services/nostr_service.dart';
 class MyRidesProvider with ChangeNotifier {
   final AuthService _authService;
   final NostrService _nostrService;
-  StreamSubscription<NostrEvent>? _myRidesStreamListener;
+  StreamSubscription<Nip01Event>? _myRidesStreamListener;
 
   // State
-  Map<String, RideItemModel> _myRidesByDTag = {};
+  final Map<String, RideItemModel> _myRidesByDTag = {};
   bool _isLoading = false;
   String? _error;
   bool _initialFetchDone = false;
@@ -71,7 +71,7 @@ class MyRidesProvider with ChangeNotifier {
   }
 
   Future<void> fetchMyRides({bool forceRefresh = false}) async {
-    if (!_authService.isLoggedIn || _authService.npub == null) {
+    if (!_authService.isLoggedIn || _authService.hexPublicKey == null) {
       setError("Not logged in.");
       return;
     }
@@ -84,7 +84,8 @@ class MyRidesProvider with ChangeNotifier {
       return;
     }
 
-    debugPrint("MyRidesProvider: Fetching rides for ${_authService.npub}");
+    final userPubkeyHex = _authService.hexPublicKey!;
+    debugPrint("MyRidesProvider: Fetching rides for $userPubkeyHex");
     setStateLoading(true);
     _error = null;
     if (forceRefresh) {
@@ -96,14 +97,6 @@ class MyRidesProvider with ChangeNotifier {
     await _myRidesStreamListener?.cancel();
     _myRidesStreamListener = null;
 
-    final userPubkeyHex = _authService.signingKey != null
-        ? Nostr.instance.services.keys.derivePublicKey(privateKey: _authService.signingKey!)
-        : null;
-    if (userPubkeyHex == null) {
-      setError("Could not derive public key.");
-      return;
-    }
-
     try {
       final streamResult = _nostrService.subscribeToUserRides(userPubkeyHex);
       if (streamResult == null) {
@@ -112,14 +105,14 @@ class MyRidesProvider with ChangeNotifier {
       }
 
       _myRidesStreamListener = streamResult.stream.listen(
-            (event) {
+        (event) {
           if (!_providerMounted) return;
           bool rideAddedOrUpdated = false;
           try {
             final ride = RideItemModel.fromNostrEvent(event);
-            final dTag = event.tags?.firstWhereOrNull((t) => t is List && t.isNotEmpty && t[0] == 'd');
+            final dTag = event.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd');
             if (dTag != null && dTag.length > 1) {
-              final dValue = dTag[1].toString();
+              final dValue = dTag[1];
               final existingRide = _myRidesByDTag[dValue];
               if (existingRide == null || ride.createdAt.isAfter(existingRide.createdAt)) {
                 _myRidesByDTag[dValue] = ride;
@@ -164,15 +157,16 @@ class MyRidesProvider with ChangeNotifier {
   }
 
   Future<bool> markRideSold(RideItemModel ride) async {
-    if (!_authService.isLoggedIn || _authService.signingKey == null) {
+    final signer = _authService.signer;
+    if (!_authService.isLoggedIn || signer == null) {
       debugPrint("MyRidesProvider: Cannot mark sold, not logged in.");
       return false;
     }
-    if (ride.rawNostrEvent == null || ride.id == 'invalid_id') {
+    if (ride.rawNostrEvent == null || ride.id.isEmpty) {
       debugPrint("MyRidesProvider: Cannot mark sold, missing raw event or invalid ID.");
       return false;
     }
-    final dTagValue = ride.rawNostrEvent!.tags?.firstWhereOrNull((t) => t is List && t.isNotEmpty && t[0] == 'd')?[1].toString();
+    final dTagValue = ride.rawNostrEvent!.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd')?[1];
     if (dTagValue == null) {
       debugPrint("MyRidesProvider: Cannot mark sold, missing 'd' tag.");
       return false;
@@ -188,14 +182,13 @@ class MyRidesProvider with ChangeNotifier {
       try {
         List<List<String>> updatedTags = [];
         bool statusTagFound = false;
-        for (final tag in ride.rawNostrEvent!.tags ?? []) {
-          if (tag is List && tag.isNotEmpty) {
-            final stringTag = tag.map((e) => e.toString()).toList();
-            if (stringTag[0] == 'status') {
+        for (final tag in ride.rawNostrEvent!.tags) {
+          if (tag.isNotEmpty) {
+            if (tag[0] == 'status') {
               updatedTags.add(["status", "sold"]);
               statusTagFound = true;
             } else {
-              updatedTags.add(stringTag);
+              updatedTags.add(List<String>.from(tag));
             }
           }
         }
@@ -203,19 +196,22 @@ class MyRidesProvider with ChangeNotifier {
           updatedTags.add(["status", "sold"]);
         }
 
-        final originalContent = ride.rawNostrEvent!.content ?? ride.description;
-        final keyPairs = Nostr.instance.services.keys.generateKeyPairFromExistingPrivateKey(_authService.signingKey!);
+        final originalContent = ride.rawNostrEvent!.content.isNotEmpty
+            ? ride.rawNostrEvent!.content
+            : ride.description;
 
-        final updatedEvent = NostrEvent.fromPartialData(
-          kind: ride.rawNostrEvent!.kind!,
+        final rawUpdatedEvent = Nip01Event(
+          pubKey: signer.getPublicKey(),
+          kind: ride.rawNostrEvent!.kind,
           content: originalContent,
           tags: updatedTags,
-          keyPairs: keyPairs,
         );
 
-        final success = await _nostrService.publishEvent(updatedEvent);
+        final signedUpdatedEvent = await signer.sign(rawUpdatedEvent);
+
+        final success = await _nostrService.publishEvent(signedUpdatedEvent);
         if (success) {
-          debugPrint("MyRidesProvider: Successfully marked ride dTag=$dTagValue as sold. New Event ID: ${updatedEvent.id}");
+          debugPrint("MyRidesProvider: Successfully marked ride dTag=$dTagValue as sold. New Event ID: ${signedUpdatedEvent.id}");
           return true;
         } else {
           debugPrint("MyRidesProvider: Failed to mark sold (attempt $attempt).");
@@ -244,15 +240,16 @@ class MyRidesProvider with ChangeNotifier {
     required String priceAmount,
     required String priceCurrency,
   }) async {
-    if (!_authService.isLoggedIn || _authService.signingKey == null) {
+    final signer = _authService.signer;
+    if (!_authService.isLoggedIn || signer == null) {
       debugPrint("MyRidesProvider: Cannot edit, not logged in.");
       return false;
     }
-    if (existingRide.rawNostrEvent == null || existingRide.id == 'invalid_id') {
+    if (existingRide.rawNostrEvent == null || existingRide.id.isEmpty) {
       debugPrint("MyRidesProvider: Cannot edit, missing raw event or invalid ID.");
       return false;
     }
-    final dTagValue = existingRide.rawNostrEvent!.tags?.firstWhereOrNull((t) => t is List && t.isNotEmpty && t[0] == 'd')?[1].toString();
+    final dTagValue = existingRide.rawNostrEvent!.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd')?[1];
     if (dTagValue == null) {
       debugPrint("MyRidesProvider: Cannot edit, missing 'd' tag.");
       return false;
@@ -266,17 +263,14 @@ class MyRidesProvider with ChangeNotifier {
     const maxRetries = 3;
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Preserve essential tags and update relevant ones
         List<List<String>> updatedTags = [];
-        for (final tag in existingRide.rawNostrEvent!.tags ?? []) {
-          if (tag is List && tag.isNotEmpty) {
-            final stringTag = tag.map((e) => e.toString()).toList();
-            if (stringTag[0] == 'g' || stringTag[0] == 't' || stringTag[0] == 'd') {
-              updatedTags.add(stringTag); // Keep geohash, type, and d tags
+        for (final tag in existingRide.rawNostrEvent!.tags) {
+          if (tag.isNotEmpty) {
+            if (tag[0] == 'g' || tag[0] == 't' || tag[0] == 'd') {
+              updatedTags.add(List<String>.from(tag));
             }
           }
         }
-        // Add updated tags
         updatedTags.addAll([
           ['t', rideType == RideType.offer ? 'offer' : 'request'],
           ['status', existingRide.status.name],
@@ -284,19 +278,18 @@ class MyRidesProvider with ChangeNotifier {
           ['timezone', originTimezone],
         ]);
 
-        final keyPairs = Nostr.instance.services.keys.generateKeyPairFromExistingPrivateKey(_authService.signingKey!);
-
-        final updatedEvent = NostrEvent.fromPartialData(
-          kind: existingRide.rawNostrEvent!.kind!,
+        final rawUpdatedEvent = Nip01Event(
+          pubKey: signer.getPublicKey(),
+          kind: existingRide.rawNostrEvent!.kind,
           content: description,
           tags: updatedTags,
-          keyPairs: keyPairs,
-          createdAt: DateTime.now(),
         );
 
-        final success = await _nostrService.publishEvent(updatedEvent);
+        final signedUpdatedEvent = await signer.sign(rawUpdatedEvent);
+
+        final success = await _nostrService.publishEvent(signedUpdatedEvent);
         if (success) {
-          debugPrint("MyRidesProvider: Successfully edited ride dTag=$dTagValue. New Event ID: ${updatedEvent.id}");
+          debugPrint("MyRidesProvider: Successfully edited ride dTag=$dTagValue. New Event ID: ${signedUpdatedEvent.id}");
           return true;
         } else {
           debugPrint("MyRidesProvider: Failed to edit ride (attempt $attempt).");
@@ -316,15 +309,16 @@ class MyRidesProvider with ChangeNotifier {
   }
 
   Future<bool> deleteRide(RideItemModel ride) async {
-    if (!_authService.isLoggedIn || _authService.signingKey == null) {
+    final signer = _authService.signer;
+    if (!_authService.isLoggedIn || signer == null) {
       debugPrint("MyRidesProvider: Cannot delete, not logged in.");
       return false;
     }
-    if (ride.id == 'invalid_id') {
+    if (ride.id.isEmpty) {
       debugPrint("MyRidesProvider: Cannot delete, invalid ride ID.");
       return false;
     }
-    final dTagValue = ride.rawNostrEvent?.tags?.firstWhereOrNull((t) => t is List && t.isNotEmpty && t[0] == 'd')?[1].toString();
+    final dTagValue = ride.rawNostrEvent?.tags.firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd')?[1];
     if (dTagValue == null) {
       debugPrint("MyRidesProvider: Cannot delete, missing 'd' tag.");
       return false;
@@ -341,7 +335,7 @@ class MyRidesProvider with ChangeNotifier {
         final success = await _nostrService.publishDeletionEvent(
           eventIdToDelete: ride.id,
           reason: "Ride deleted by user.",
-          signingKey: _authService.signingKey!,
+          signer: signer,
         );
         if (success) {
           debugPrint("MyRidesProvider: Successfully deleted ride ${ride.id}");
@@ -358,10 +352,8 @@ class MyRidesProvider with ChangeNotifier {
     }
 
     // Rollback optimistic update on failure
-    if (dTagValue != null) {
-      _myRidesByDTag[dTagValue] = ride;
-      notifyListeners();
-    }
+    _myRidesByDTag[dTagValue] = ride;
+    notifyListeners();
     debugPrint("MyRidesProvider: Failed to delete ride ${ride.id} after $maxRetries attempts.");
     return false;
   }

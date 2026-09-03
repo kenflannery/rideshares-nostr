@@ -1,4 +1,4 @@
-import 'package:dart_nostr/dart_nostr.dart';
+import 'package:ndk/ndk.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -223,15 +223,14 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   }
 
   Widget _buildMessageButton(String pubkey) {
-
     if (pubkey.isEmpty) {
-      return const SizedBox.shrink(); // Return an empty widget if pubkey is empty
+      return const SizedBox.shrink();
     }
-    String npub = Nostr.instance.services.bech32.encodePublicKeyToNpub(pubkey);
+    String npub = pubkey.startsWith('npub') ? pubkey : Nip19.encodePubKey(pubkey);
     String url = 'https://www.nostrchat.io/dm/$npub';
     if (url.isEmpty) {
-      return const SizedBox.shrink(); // Return an empty widget if URL is empty
-  }
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
       child: ElevatedButton.icon(
@@ -240,7 +239,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         onPressed: () {
           launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
         },
-    ),
+      ),
     );
   }
 
@@ -270,10 +269,8 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     );
   }
 
-
   Widget _buildDetailRowWithLink(BuildContext context, IconData icon, String label, String value) {
-
-    String npub = Nostr.instance.services.bech32.encodePublicKeyToNpub(value);
+    String npub = value.startsWith('npub') ? value : Nip19.encodePubKey(value);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -296,7 +293,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                 final url = 'https://njump.me/$npub';
                 if (await canLaunchUrl(Uri.parse(url))) {
                   await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                } else {
+                } else if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Could not open link')),
                   );

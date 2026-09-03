@@ -302,47 +302,18 @@ class FeedProvider with ChangeNotifier {
     }
 
     try {
-      final relays = _nostrService.relays;
-      final totalRelays = relays.length;
-      final completedRelays = <String>{};
-      String? subscriptionId;
-      bool allRelaysDone = false;
-
-      final streamResult = _nostrService.subscribeToRides(
+      _nostrService.subscribeToRides(
         originGeohashPrefixes: geohashFilter,
-        onEose: (relayUrl, eoseCommand) {
-          if (subscriptionId == null) {
-            subscriptionId = eoseCommand.subscriptionId;
-          }
-          if (eoseCommand.subscriptionId == subscriptionId) {
-            completedRelays.add(relayUrl);
-            debugPrint("FeedProvider: EOSE from $relayUrl, ${completedRelays.length}/$totalRelays relays done");
-            if (completedRelays.length == totalRelays) {
-              debugPrint("FeedProvider: All relays sent EOSE");
-              allRelaysDone = true;
-              Future.delayed(const Duration(milliseconds: 500), () {
-                if (_providerMounted && _isLoading) {
-                  _rideSubscription?.cancel();
-                  _rideSubscription = null;
-                  _isLoading = false;
-                  _initialFetchDone = true;
-                  _error = null;
-                  notifyListeners();
-                }
-              });
-            }
-          }
-        },
       );
 
       _rideSubscription = _nostrService.feedRideEventsStream.listen(
-            (rideItem) {
+        (rideItem) {
           bool listChanged = false;
           try {
             final dTag = rideItem.rawNostrEvent?.tags
-                ?.firstWhereOrNull((t) => t is List && t.isNotEmpty && t[0] == 'd');
+                .firstWhereOrNull((t) => t.isNotEmpty && t[0] == 'd');
             if (dTag != null && dTag.length > 1) {
-              final dValue = dTag[1].toString();
+              final dValue = dTag[1];
               final existingRide = _ridesByDTag[dValue];
               if (existingRide == null || rideItem.createdAt.isAfter(existingRide.createdAt)) {
                 _ridesByDTag[dValue] = rideItem;
@@ -375,14 +346,12 @@ class FeedProvider with ChangeNotifier {
         },
       );
 
-      Future.delayed(const Duration(seconds: 10), () {
+      Future.delayed(const Duration(seconds: 4), () {
         if (_providerMounted && _isLoading) {
-          _rideSubscription?.cancel();
-          _rideSubscription = null;
           _isLoading = false;
           _initialFetchDone = true;
           _error = _ridesByDTag.isEmpty ? "No rides found." : null;
-          debugPrint("FeedProvider: Fallback timeout triggered");
+          debugPrint("FeedProvider: Initial fetch window complete");
           notifyListeners();
         }
       });
