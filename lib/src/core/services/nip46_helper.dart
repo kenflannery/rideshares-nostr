@@ -225,6 +225,15 @@ class RideshareNip46Signer implements EventSigner {
   bool canSign() => true;
 
   @override
+  bool get requiresInteractiveSigning => true;
+
+  @override
+  bool get requiresSignerNetwork => true;
+
+  @override
+  Iterable<String> get signerTransportRelayUrls => connection.relays;
+
+  @override
   Future<Nip01Event> sign(Nip01Event event) async {
     final eventMap = {
       "kind": event.kind,

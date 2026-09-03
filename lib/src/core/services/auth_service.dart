@@ -4,13 +4,13 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:ndk/ndk.dart';
-import 'package:ndk_amber/ndk_amber.dart';
-import 'package:nip07_event_signer/nip07_event_signer.dart';
 import 'package:amberflutter/amberflutter.dart';
 import 'package:bip340/bip340.dart' as bip340;
 
 import 'nostr_service.dart';
 import 'nip46_helper.dart';
+import 'amber_signer.dart';
+import 'nip07_signer.dart';
 
 enum LoginType { nsec, nip07, amber, nip46 }
 
@@ -168,8 +168,8 @@ class AuthService with ChangeNotifier {
 
   Future<bool> isAmberAvailable() async {
     try {
-      final amberDs = AmberFlutterDS(Amberflutter());
-      return await amberDs.amber.isAppInstalled();
+      final amber = Amberflutter();
+      return await amber.isAppInstalled();
     } catch (_) {
       return false;
     }
@@ -177,8 +177,8 @@ class AuthService with ChangeNotifier {
 
   Future<bool> loginWithAmber() async {
     try {
-      final amberDs = AmberFlutterDS(Amberflutter());
-      final res = await amberDs.amber.getPublicKey();
+      final amber = Amberflutter();
+      final res = await amber.getPublicKey();
       final pubkeyHexOrNpub = res['signature'] ?? res['pubkey'];
 
       if (pubkeyHexOrNpub == null || pubkeyHexOrNpub.isEmpty) {
@@ -209,10 +209,8 @@ class AuthService with ChangeNotifier {
   }
 
   Future<void> _setupAmberSigner(String hexPubKey) async {
-    final amberDs = AmberFlutterDS(Amberflutter());
     _signer = AmberEventSigner(
       publicKey: hexPubKey,
-      amberFlutterDS: amberDs,
     );
     _hexPublicKey = hexPubKey;
     _npub = Nip19.encodePubKey(hexPubKey);
@@ -223,8 +221,8 @@ class AuthService with ChangeNotifier {
 
   Future<bool> loginWithNip07() async {
     try {
-      final nip07Signer = Nip07EventSigner();
-      final pubKey = await nip07Signer.getPublicKeyAsync();
+      final nip07Signer = await Nip07Signer.connect();
+      final pubKey = nip07Signer.getPublicKey();
 
       String hexPubKey;
       if (pubKey.startsWith('npub')) {
@@ -246,7 +244,7 @@ class AuthService with ChangeNotifier {
   }
 
   Future<void> _setupNip07Signer(String hexPubKey) async {
-    _signer = Nip07EventSigner(cachedPublicKey: hexPubKey);
+    _signer = Nip07Signer.fromCachedPublicKey(hexPubKey);
     _hexPublicKey = hexPubKey;
     _npub = Nip19.encodePubKey(hexPubKey);
     _loginType = LoginType.nip07;

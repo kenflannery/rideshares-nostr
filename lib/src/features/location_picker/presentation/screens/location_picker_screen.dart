@@ -3,7 +3,6 @@ import 'package:flutter_map/flutter_map.dart'; // Import flutter_map
 import 'package:latlong2/latlong.dart'; // Import LatLng
 import 'package:osm_nominatim/osm_nominatim.dart'; // Import Nominatim
 import 'package:dart_geohash/dart_geohash.dart'; // Import Geohash
-import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 
 import '../../../../core/models/location_model.dart'; // Import our Location model
 
@@ -148,7 +147,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'org.rideshares.rideshares_app', // ** CHANGE AS NEEDED **
-                tileProvider: CancellableNetworkTileProvider(),
+                tileProvider: NetworkTileProvider(),
                 // Add fallback URLs if needed
               ),
 

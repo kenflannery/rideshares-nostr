@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:animate_do/animate_do.dart'; // For animations
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/models/ride_item_model.dart';
@@ -125,7 +124,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                     children: [
                       TileLayer(
                         urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        tileProvider: CancellableNetworkTileProvider(),
+                        tileProvider: NetworkTileProvider(),
                       ),
                       MarkerLayer(
                         markers: [
