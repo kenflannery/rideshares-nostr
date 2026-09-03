@@ -71,7 +71,7 @@ jobs:
       - name: Build Release APK
         if: steps.check_tag.outputs.TAG_EXISTS == 'false' || github.event_name == 'workflow_dispatch'
         run: |
-          flutter build apk --release
+          flutter build apk --release --android-skip-build-dependency-validation
           cp build/app/outputs/flutter-apk/app-release.apk rideshares-nostr-v${{ steps.extract_version.outputs.VERSION }}.apk
           cp build/app/outputs/flutter-apk/app-release.apk rideshares-nostr-latest.apk
 
