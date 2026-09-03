@@ -36,7 +36,7 @@ jobs:
         run: flutter test
 
       - name: Build Flutter Web
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+        run: flutter build web --release --base-href "/"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
